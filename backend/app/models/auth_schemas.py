@@ -15,7 +15,7 @@ class RegisterRequest(BaseModel):
     role: str = Field(
         default="officer",
         pattern="^(officer|admin|researcher)$",
-        description="User role: officer, admin, or researcher",
+        description="Requested user role. Only the first bootstrap user becomes admin.",
     )
 
 
@@ -33,6 +33,7 @@ class UserResponse(BaseModel):
     organization: Optional[str] = None
     role: str
     created_at: str
+    is_active: bool = True
 
 
 class AuthResponse(BaseModel):

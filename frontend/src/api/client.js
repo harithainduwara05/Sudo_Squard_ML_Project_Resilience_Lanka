@@ -21,6 +21,19 @@ export async function predictFloodRisk(data) {
 }
 
 /**
+ * Simulate flood risk based on a varying feature
+ */
+export async function simulateRisk(data) {
+  try {
+    const response = await api.post('/api/simulate', data);
+    return response.data;
+  } catch (error) {
+    console.error('Simulation API error:', error);
+    throw error.response?.data || { detail: 'Failed to run simulation. Please try again.' };
+  }
+}
+
+/**
  * Submit user feedback on a prediction
  */
 export async function submitFeedback(data) {
@@ -43,6 +56,62 @@ export async function getAnalytics() {
   } catch (error) {
     console.error('Analytics API error:', error);
     throw error.response?.data || { detail: 'Failed to fetch analytics.' };
+  }
+}
+
+/**
+ * Fetch admin dashboard overview data
+ */
+export async function getAdminOverview() {
+  try {
+    const response = await api.get('/api/admin/overview');
+    return response.data;
+  } catch (error) {
+    console.error('Admin overview API error:', error);
+    throw error.response?.data || { detail: 'Failed to fetch admin overview.' };
+  }
+}
+
+/**
+ * Fetch users for admin management
+ */
+export async function getAdminUsers(search = '') {
+  try {
+    const response = await api.get('/api/admin/users', {
+      params: search ? { search } : {},
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Admin users API error:', error);
+    throw error.response?.data || { detail: 'Failed to fetch users.' };
+  }
+}
+
+/**
+ * Update a user's role
+ */
+export async function updateAdminUserRole(userId, role) {
+  try {
+    const response = await api.patch(`/api/admin/users/${userId}/role`, { role });
+    return response.data;
+  } catch (error) {
+    console.error('Admin role update API error:', error);
+    throw error.response?.data || { detail: 'Failed to update user role.' };
+  }
+}
+
+/**
+ * Activate or deactivate a user
+ */
+export async function updateAdminUserStatus(userId, isActive) {
+  try {
+    const response = await api.patch(`/api/admin/users/${userId}/status`, {
+      is_active: isActive,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Admin status update API error:', error);
+    throw error.response?.data || { detail: 'Failed to update user status.' };
   }
 }
 

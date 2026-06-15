@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -112,6 +112,102 @@ function focusHandler(e) {
 function blurHandler(e) {
   e.target.style.borderColor = 'rgba(56, 189, 248, 0.1)';
   e.target.style.boxShadow = 'none';
+}
+
+/* ─── Custom Glass Dropdown ─── */
+function CustomDropdown({ value, onChange, options }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (ref.current && !ref.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find(opt => opt.value === value) || options[0];
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          ...inputStyle,
+          cursor: 'pointer',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderColor: isOpen ? '#06b6d4' : 'rgba(56, 189, 248, 0.1)',
+          boxShadow: isOpen ? '0 0 0 3px rgba(6, 182, 212, 0.1)' : 'none',
+        }}
+      >
+        <span>{selectedOption.label}</span>
+        <motion.svg
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </motion.svg>
+      </div>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              marginTop: '8px',
+              background: 'rgba(15, 23, 42, 0.85)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: '1px solid rgba(56, 189, 248, 0.2)',
+              borderRadius: '12px',
+              padding: '6px',
+              zIndex: 50,
+              boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+            }}
+          >
+            {options.map((opt) => (
+              <div
+                key={opt.value}
+                onClick={() => {
+                  onChange(opt.value);
+                  setIsOpen(false);
+                }}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem',
+                  color: value === opt.value ? '#22d3ee' : '#f1f5f9',
+                  background: value === opt.value ? 'rgba(6, 182, 212, 0.1)' : 'transparent',
+                  transition: 'background 0.2s',
+                }}
+                onMouseEnter={e => {
+                  if (value !== opt.value) e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                }}
+                onMouseLeave={e => {
+                  if (value !== opt.value) e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                {opt.label}
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 }
 
 export default function RegisterPage() {
@@ -335,8 +431,8 @@ export default function RegisterPage() {
                 />
               </div>
 
-              {/* Organization & Role row */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Organization */}
                 <div>
                   <label htmlFor="reg-org" style={labelStyle}>
                     Organization <span style={{ color: '#64748b', textTransform: 'none', fontWeight: 400 }}>(Optional)</span>
@@ -352,28 +448,18 @@ export default function RegisterPage() {
                     onBlur={blurHandler}
                   />
                 </div>
+
+                {/* Role */}
                 <div>
-                  <label htmlFor="reg-role" style={labelStyle}>Role</label>
-                  <select
-                    id="reg-role"
+                  <label style={labelStyle}>Role</label>
+                  <CustomDropdown
                     value={role}
-                    onChange={e => setRole(e.target.value)}
-                    style={{
-                      ...inputStyle,
-                      cursor: 'pointer',
-                      appearance: 'none',
-                      backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-                      backgroundRepeat: 'no-repeat',
-                      backgroundPosition: 'right 14px center',
-                      paddingRight: '40px',
-                    }}
-                    onFocus={focusHandler}
-                    onBlur={blurHandler}
-                  >
-                    <option value="officer">Officer</option>
-                    <option value="admin">Admin</option>
-                    <option value="researcher">Researcher</option>
-                  </select>
+                    onChange={setRole}
+                    options={[
+                      { value: 'officer', label: 'Member' },
+                      { value: 'researcher', label: 'Researcher' }
+                    ]}
+                  />
                 </div>
               </div>
 

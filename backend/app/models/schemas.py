@@ -162,6 +162,42 @@ class PredictionResponse(BaseModel):
     risk_color: str = Field(
         ..., description="Hex color code representing the risk level"
     )
+    feature_importance: Optional[List[dict]] = Field(
+        default=None, description="List of top contributing features (e.g. [{'feature': 'Rainfall', 'importance': 45}])"
+    )
+    input_data: Optional[dict] = Field(
+        default=None, description="The original request payload used for this prediction"
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Simulation (What-If Scenarios)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class SimulationRequest(BaseModel):
+    """Payload for running a what-if scenario simulation."""
+    base_request: PredictionRequest = Field(
+        ..., description="The original prediction request to act as the baseline."
+    )
+    target_feature: str = Field(
+        ..., description="The name of the feature to vary (e.g., 'rainfall_7d_mm')"
+    )
+    min_value: float = Field(..., description="Minimum value for the simulation range")
+    max_value: float = Field(..., description="Maximum value for the simulation range")
+    steps: int = Field(default=10, ge=2, le=50, description="Number of data points to generate")
+
+
+class SimulationDataPoint(BaseModel):
+    value: float
+    risk_score: float
+    risk_level: str
+    risk_color: str
+
+
+class SimulationResponse(BaseModel):
+    """Response payload for a scenario simulation."""
+    target_feature: str
+    data_points: List[SimulationDataPoint]
 
 
 # ═══════════════════════════════════════════════════════════════════════════

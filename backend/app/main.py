@@ -13,7 +13,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routes import analytics, auth, feedback, predict
+from app.routes import admin, analytics, auth, feedback, predict
 from app.services.db_service import DBService
 from app.services.ml_service import MLService
 
@@ -130,6 +130,7 @@ app.include_router(predict.router)
 app.include_router(feedback.router)
 app.include_router(analytics.router)
 app.include_router(auth.router)
+app.include_router(admin.router)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
