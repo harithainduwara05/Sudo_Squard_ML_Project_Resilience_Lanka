@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Header from './components/layout/Header';
 import DashboardPage from './pages/DashboardPage';
+import UserDashboardPage from './pages/UserDashboardPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -29,6 +30,14 @@ function AppRoutes() {
           <Header />
           <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
             <DashboardPage />
+          </main>
+        </ProtectedRoute>
+      } />
+      <Route path="/user" element={
+        <ProtectedRoute>
+          <Header />
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
+            <UserDashboardPage />
           </main>
         </ProtectedRoute>
       } />
