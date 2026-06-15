@@ -20,7 +20,7 @@ const cardData = [
   {
     icon: '📈',
     label: 'Avg Risk Score',
-    key: 'average_risk_score',
+    key: 'avg_risk_score',
     fallback: 0,
     accent: '#f59e0b',
     format: (v) => (typeof v === 'number' ? v.toFixed(3) : v),

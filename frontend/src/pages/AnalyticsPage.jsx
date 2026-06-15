@@ -41,7 +41,7 @@ export default function AnalyticsPage() {
           setData({
             total_predictions: 0,
             high_risk_count: 0,
-            average_risk_score: 0,
+            avg_risk_score: 0,
             accuracy: 94.2,
             recent_predictions: [],
           });

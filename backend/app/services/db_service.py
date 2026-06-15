@@ -149,6 +149,56 @@ class DBService:
             )
             return []
 
+    async def get_feedback_accuracy(self, limit: int = 8) -> dict[str, Any]:
+        """
+        Summarize feedback as an operational accuracy signal.
+
+        This reflects user-confirmed feedback, not a full scientific validation
+        set. Admins can use it to spot model-quality problems early.
+        """
+        try:
+            collection = self.db.user_feedback
+            total_feedback = await collection.count_documents({})
+            accurate_feedback = await collection.count_documents({"is_accurate": True})
+            inaccurate_feedback = await collection.count_documents(
+                {"is_accurate": False}
+            )
+            feedback_accuracy = (
+                round((accurate_feedback / total_feedback) * 100, 1)
+                if total_feedback
+                else 0.0
+            )
+
+            cursor = (
+                collection
+                .find({"is_accurate": False}, {"_id": 0})
+                .sort("created_at", -1)
+                .limit(limit)
+            )
+            recent_inaccurate_feedback = await cursor.to_list(length=limit)
+
+            return {
+                "total_feedback": total_feedback,
+                "accurate_feedback": accurate_feedback,
+                "inaccurate_feedback": inaccurate_feedback,
+                "feedback_accuracy": feedback_accuracy,
+                "recent_inaccurate_feedback": recent_inaccurate_feedback,
+            }
+
+        except Exception as exc:
+            logger.warning(
+                "Failed to fetch feedback accuracy from MongoDB: %s",
+                exc,
+                exc_info=True,
+            )
+            return {
+                "total_feedback": 0,
+                "accurate_feedback": 0,
+                "inaccurate_feedback": 0,
+                "feedback_accuracy": 0.0,
+                "recent_inaccurate_feedback": [],
+            }
+
     # ── Lifecycle ─────────────────────────────────────────────────────────
 
     async def close(self) -> None:

@@ -8,6 +8,8 @@ from typing import Optional
 from fastapi import HTTPException, status
 from jose import JWTError, jwt
 import bcrypt
+from bson import ObjectId
+from bson.errors import InvalidId
 
 from app.config import settings
 from app.models.auth_schemas import RegisterRequest, TokenData
@@ -113,12 +115,16 @@ class AuthService:
                 detail="Email already registered",
             )
 
+        user_count = await self.users_collection.count_documents({})
+        assigned_role = "admin" if user_count == 0 else "officer"
+
         user_doc = {
             "full_name": request.full_name,
             "email": request.email,
             "password": self.hash_password(request.password),
             "organization": request.organization,
-            "role": request.role,
+            "role": assigned_role,
+            "is_active": True,
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -132,6 +138,7 @@ class AuthService:
             "organization": user_doc["organization"],
             "role": user_doc["role"],
             "created_at": user_doc["created_at"],
+            "is_active": user_doc["is_active"],
         }
 
     async def authenticate_user(self, email: str, password: str) -> dict:
@@ -147,7 +154,105 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid credentials",
             )
+        if user.get("is_active") is False:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This account has been deactivated",
+            )
 
+        return self._serialize_user(user)
+
+    async def get_user_by_email(self, email: str) -> Optional[dict]:
+        """Find a user by email in the 'users' collection."""
+        user = await self.users_collection.find_one({"email": email})
+        return self._serialize_user(user) if user else None
+
+    async def get_user_by_id(self, user_id: str) -> Optional[dict]:
+        """Find a user by MongoDB ObjectId string."""
+        object_id = self._to_object_id(user_id)
+        user = await self.users_collection.find_one({"_id": object_id})
+        return self._serialize_user(user) if user else None
+
+    async def list_users(self, search: Optional[str] = None) -> tuple[list[dict], int]:
+        """Return users for the admin dashboard, newest first."""
+        query = {}
+        if search:
+            query = {
+                "$or": [
+                    {"full_name": {"$regex": search, "$options": "i"}},
+                    {"email": {"$regex": search, "$options": "i"}},
+                    {"organization": {"$regex": search, "$options": "i"}},
+                    {"role": {"$regex": search, "$options": "i"}},
+                ]
+            }
+
+        total = await self.users_collection.count_documents(query)
+        cursor = (
+            self.users_collection
+            .find(query, {"password": 0})
+            .sort("created_at", -1)
+            .limit(100)
+        )
+        users = [self._serialize_user(user) async for user in cursor]
+        return users, total
+
+    async def get_user_counts(self) -> dict:
+        """Return user totals used by the admin overview."""
+        total_users = await self.users_collection.count_documents({})
+        active_users = await self.users_collection.count_documents(
+            {"is_active": {"$ne": False}}
+        )
+        admin_users = await self.users_collection.count_documents(
+            {"role": "admin", "is_active": {"$ne": False}}
+        )
+        return {
+            "total_users": total_users,
+            "active_users": active_users,
+            "admin_users": admin_users,
+        }
+
+    async def update_user_role(self, user_id: str, role: str) -> dict:
+        """Change a user's role and return the updated user."""
+        object_id = self._to_object_id(user_id)
+        result = await self.users_collection.update_one(
+            {"_id": object_id},
+            {"$set": {"role": role}},
+        )
+        if result.matched_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+        user = await self.users_collection.find_one({"_id": object_id})
+        return self._serialize_user(user)
+
+    async def update_user_status(self, user_id: str, is_active: bool) -> dict:
+        """Activate or deactivate a user account."""
+        object_id = self._to_object_id(user_id)
+        result = await self.users_collection.update_one(
+            {"_id": object_id},
+            {"$set": {"is_active": is_active}},
+        )
+        if result.matched_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+        user = await self.users_collection.find_one({"_id": object_id})
+        return self._serialize_user(user)
+
+    def _to_object_id(self, user_id: str) -> ObjectId:
+        """Convert a string to ObjectId with a consistent API error."""
+        try:
+            return ObjectId(user_id)
+        except InvalidId:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid user id",
+            )
+
+    def _serialize_user(self, user: dict) -> dict:
+        """Return the public user shape used by API responses."""
         return {
             "id": str(user["_id"]),
             "full_name": user["full_name"],
@@ -155,18 +260,5 @@ class AuthService:
             "organization": user.get("organization"),
             "role": user["role"],
             "created_at": user["created_at"],
+            "is_active": user.get("is_active", True),
         }
-
-    async def get_user_by_email(self, email: str) -> Optional[dict]:
-        """Find a user by email in the 'users' collection."""
-        user = await self.users_collection.find_one({"email": email})
-        if user:
-            return {
-                "id": str(user["_id"]),
-                "full_name": user["full_name"],
-                "email": user["email"],
-                "organization": user.get("organization"),
-                "role": user["role"],
-                "created_at": user["created_at"],
-            }
-        return None

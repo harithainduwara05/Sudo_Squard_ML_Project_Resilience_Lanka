@@ -90,6 +90,25 @@ export default function Header() {
                   Analytics
                 </span>
               </NavLink>
+              {user?.role === 'admin' && (
+                <NavLink
+                  to="/admin"
+                  className={({ isActive }) =>
+                    `px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                      isActive
+                        ? 'text-primary-light bg-primary/10'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                    }`
+                  }
+                >
+                  <span className="flex items-center gap-2">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M8 1l5 2v4c0 3.2-2 6.1-5 8-3-1.9-5-4.8-5-8V3l5-2zm0 2.2L5 4.4V7c0 2.1 1.1 4.2 3 5.6 1.9-1.4 3-3.5 3-5.6V4.4L8 3.2z" opacity="0.9" />
+                    </svg>
+                    Admin
+                  </span>
+                </NavLink>
+              )}
             </nav>
 
             {/* Divider */}

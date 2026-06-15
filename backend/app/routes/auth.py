@@ -44,6 +44,11 @@ async def get_current_user(request: Request) -> dict:
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    if user.get("is_active") is False:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account has been deactivated",
+        )
     return user
 
 

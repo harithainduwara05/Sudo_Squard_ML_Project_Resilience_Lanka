@@ -121,7 +121,6 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [organization, setOrganization] = useState('');
-  const [role, setRole] = useState('officer');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -157,7 +156,6 @@ export default function RegisterPage() {
         full_name: fullName.trim(),
         email,
         organization: organization.trim() || undefined,
-        role,
         password,
       });
       login(data);
@@ -335,46 +333,21 @@ export default function RegisterPage() {
                 />
               </div>
 
-              {/* Organization & Role row */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="reg-org" style={labelStyle}>
-                    Organization <span style={{ color: '#64748b', textTransform: 'none', fontWeight: 400 }}>(Optional)</span>
-                  </label>
-                  <input
-                    id="reg-org"
-                    type="text"
-                    value={organization}
-                    onChange={e => setOrganization(e.target.value)}
-                    placeholder="e.g. DMC"
-                    style={inputStyle}
-                    onFocus={focusHandler}
-                    onBlur={blurHandler}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="reg-role" style={labelStyle}>Role</label>
-                  <select
-                    id="reg-role"
-                    value={role}
-                    onChange={e => setRole(e.target.value)}
-                    style={{
-                      ...inputStyle,
-                      cursor: 'pointer',
-                      appearance: 'none',
-                      backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-                      backgroundRepeat: 'no-repeat',
-                      backgroundPosition: 'right 14px center',
-                      paddingRight: '40px',
-                    }}
-                    onFocus={focusHandler}
-                    onBlur={blurHandler}
-                  >
-                    <option value="officer">Officer</option>
-                    <option value="admin">Admin</option>
-                    <option value="researcher">Researcher</option>
-                  </select>
-                </div>
+              {/* Organization */}
+              <div>
+                <label htmlFor="reg-org" style={labelStyle}>
+                  Organization <span style={{ color: '#64748b', textTransform: 'none', fontWeight: 400 }}>(Optional)</span>
+                </label>
+                <input
+                  id="reg-org"
+                  type="text"
+                  value={organization}
+                  onChange={e => setOrganization(e.target.value)}
+                  placeholder="e.g. DMC"
+                  style={inputStyle}
+                  onFocus={focusHandler}
+                  onBlur={blurHandler}
+                />
               </div>
 
               {/* Password */}
