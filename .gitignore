@@ -1,0 +1,52 @@
+# ══════════════════════════════════════════════════════════════
+# Resilience-Lanka — .gitignore
+# ══════════════════════════════════════════════════════════════
+
+# ── Environment & Secrets (CRITICAL — never commit!) ────────
+.env
+.env.local
+.env.production
+.env.*.local
+
+# ── ML Model (too large for git, 48MB) ──────────────────────
+*.pkl
+*.joblib
+*.h5
+*.pt
+*.onnx
+
+# ── Python ──────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+venv/
+env/
+.venv/
+
+# ── Node / Frontend ────────────────────────────────────────
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# ── IDE & OS ────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Jupyter Notebooks (checkpoints) ────────────────────────
+.ipynb_checkpoints/
+
+# ── Logs ────────────────────────────────────────────────────
+*.log
+logs/
