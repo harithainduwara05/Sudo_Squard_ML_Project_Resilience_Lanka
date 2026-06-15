@@ -32,6 +32,12 @@ function AdminRoute({ children }) {
   return user?.role === 'admin' ? children : <Navigate to="/" replace />;
 }
 
+function DashboardRoute() {
+  const { user } = useAuth();
+  if (user?.role === 'admin') return <Navigate to="/analytics" replace />;
+  return <DashboardPage />;
+}
+
 function AppRoutes() {
   const { isAuthenticated } = useAuth();
   return (
@@ -42,7 +48,7 @@ function AppRoutes() {
         <ProtectedRoute>
           <Header />
           <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
-            <DashboardPage />
+            <DashboardRoute />
           </main>
         </ProtectedRoute>
       } />

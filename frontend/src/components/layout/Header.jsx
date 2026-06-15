@@ -55,24 +55,26 @@ export default function Header() {
           {/* Navigation + User */}
           <div className="flex items-center gap-4">
             <nav className="flex items-center gap-1">
-              <NavLink
-                to="/"
-                end
-                className={({ isActive }) =>
-                  `px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                    isActive
-                      ? 'text-primary-light bg-primary/10'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
-                  }`
-                }
-              >
-                <span className="flex items-center gap-2">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M2 2h5v6H2V2zm7 0h5v4H9V2zM2 10h5v4H2v-4zm7-2h5v6H9V8z" opacity="0.9"/>
-                  </svg>
-                  Dashboard
-                </span>
-              </NavLink>
+              {user?.role !== 'admin' && (
+                <NavLink
+                  to="/"
+                  end
+                  className={({ isActive }) =>
+                    `px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                      isActive
+                        ? 'text-primary-light bg-primary/10'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                    }`
+                  }
+                >
+                  <span className="flex items-center gap-2">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M2 2h5v6H2V2zm7 0h5v4H9V2zM2 10h5v4H2v-4zm7-2h5v6H9V8z" opacity="0.9"/>
+                    </svg>
+                    Dashboard
+                  </span>
+                </NavLink>
+              )}
               <NavLink
                 to="/analytics"
                 className={({ isActive }) =>
