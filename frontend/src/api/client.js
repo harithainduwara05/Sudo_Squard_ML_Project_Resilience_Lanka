@@ -46,6 +46,62 @@ export async function getAnalytics() {
   }
 }
 
+/**
+ * Fetch admin dashboard overview data
+ */
+export async function getAdminOverview() {
+  try {
+    const response = await api.get('/api/admin/overview');
+    return response.data;
+  } catch (error) {
+    console.error('Admin overview API error:', error);
+    throw error.response?.data || { detail: 'Failed to fetch admin overview.' };
+  }
+}
+
+/**
+ * Fetch users for admin management
+ */
+export async function getAdminUsers(search = '') {
+  try {
+    const response = await api.get('/api/admin/users', {
+      params: search ? { search } : {},
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Admin users API error:', error);
+    throw error.response?.data || { detail: 'Failed to fetch users.' };
+  }
+}
+
+/**
+ * Update a user's role
+ */
+export async function updateAdminUserRole(userId, role) {
+  try {
+    const response = await api.patch(`/api/admin/users/${userId}/role`, { role });
+    return response.data;
+  } catch (error) {
+    console.error('Admin role update API error:', error);
+    throw error.response?.data || { detail: 'Failed to update user role.' };
+  }
+}
+
+/**
+ * Activate or deactivate a user
+ */
+export async function updateAdminUserStatus(userId, isActive) {
+  try {
+    const response = await api.patch(`/api/admin/users/${userId}/status`, {
+      is_active: isActive,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Admin status update API error:', error);
+    throw error.response?.data || { detail: 'Failed to update user status.' };
+  }
+}
+
 // ─── Auth Interceptor ───
 // Add request interceptor to include JWT token
 api.interceptors.request.use((config) => {
