@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { predictFloodRisk } from '../api/client';
-import { DISTRICTS } from '../utils/constants';
+import { DISTRICTS, DISTRICT_DATA_DICTIONARY, LANDCOVER_TYPES, SOIL_TYPES } from '../utils/constants';
 
 /* ─── Sri Lanka Bounds ─── */
 const SL_BOUNDS = L.latLngBounds(
@@ -116,12 +116,8 @@ export default function UserDashboardPage() {
   const [lng, setLng] = useState(80.7718);
   const [districtIndex, setDistrictIndex] = useState(findClosestDistrict(7.8731, 80.7718));
   const [locationName, setLocationName] = useState('Sri Lanka');
-
-  // form
-  const [waterProximity, setWaterProximity] = useState('far');
-  const [rainSituation, setRainSituation]   = useState('light');
-  const [infraQuality,  setInfraQuality]    = useState('good');
-  const [areaType,      setAreaType]        = useState('urban');
+  const [elevation, setElevation] = useState(20.0);
+  const [manualHospitalKm, setManualHospitalKm] = useState(null);
 
   // search
   const [searchQuery,   setSearchQuery]   = useState('');
@@ -212,6 +208,7 @@ export default function UserDashboardPage() {
 
     const di = findClosestDistrict(rLat, rLng);
     setDistrictIndex(di);
+    setManualHospitalKm(null); // Reset manual hospital distance on new map click
 
     // FlyTo with smooth animation
     if (mapRef.current) {
@@ -222,6 +219,17 @@ export default function UserDashboardPage() {
 
     reverseGeocode(rLat, rLng);
     fetchWeather(rLat, rLng);
+    
+    // Fetch elevation
+    fetch(`https://api.open-meteo.com/v1/elevation?latitude=${rLat}&longitude=${rLng}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.elevation && data.elevation.length > 0) {
+          setElevation(data.elevation[0]);
+        }
+      })
+      .catch(() => setElevation(20));
+
     updateMapPin(rLat, rLng, prediction?.risk_color || '#0ea5e9');
   }, [prediction, reverseGeocode]);
 
@@ -355,35 +363,38 @@ export default function UserDashboardPage() {
     finally { setSearchLoading(false); }
   };
 
-  /* ── Build prediction payload from simple inputs ── */
+  /* ── Build prediction payload automatically ── */
   const buildPayload = () => {
-    let distanceToRiver = 8000, waterFlag = 0;
-    if (waterProximity === 'near') { distanceToRiver = 300; waterFlag = 1; }
-
+    // 1. Get District name and default heuristics
+    const districtName = DISTRICTS[districtIndex] || 'Colombo';
+    const heuristics = DISTRICT_DATA_DICTIONARY[districtName] || DISTRICT_DATA_DICTIONARY['Colombo'];
+    
     let rain7d = weather?.rain7d ?? 45;
     let rainMonthly = rain7d * 4;
-    let floodEvent = 0;
-    if (rainSituation === 'heavy') { floodEvent = 1; waterFlag = 1; rain7d = Math.max(rain7d, 190); rainMonthly = Math.max(rainMonthly, 560); }
-    else if (rainSituation === 'light') { rain7d = Math.max(rain7d, 40); rainMonthly = Math.max(rainMonthly, 160); }
-    else { rain7d = Math.min(rain7d, 12); rainMonthly = Math.min(rainMonthly, 85); }
-
-    const infra = { good: { road: 1, score: 7.5 }, fair: { road: 2, score: 4.5 }, poor: { road: 4, score: 2.0 } }[infraQuality];
-    const area  = { urban: { density: 3000, ur: 0, cover: 0 }, rural: { density: 100, ur: 2, cover: 2 } }[areaType] ||
-                  { density: 600, ur: 1, cover: 0 };
-    const hospital = areaType === 'rural' ? 14 : 3;
-    const evac     = areaType === 'rural' ? 9  : 2;
-    const cluster  = findClosestDistrict(lat, lng) % 35;
+    
+    let waterFlag = heuristics.distRiver < 1000 ? 1 : 0;
+    let floodEvent = rain7d > 150 ? 1 : 0;
 
     return {
-      latitude: lat, longitude: lng, district: districtIndex, geo_cluster: cluster,
-      rainfall_7d_mm: rain7d, monthly_rainfall_mm: rainMonthly,
-      elevation_m: 20.0, distance_to_river_m: distanceToRiver,
-      nearest_hospital_km: hospital, nearest_evac_km: evac,
-      infrastructure_score: infra.score,
-      population_density_per_km2: area.density,
-      landcover: area.cover, soil_type: 1,
-      water_supply: 0, electricity: 0, road_quality: infra.road,
-      urban_rural: area.ur, water_presence_flag: waterFlag,
+      latitude: lat,
+      longitude: lng,
+      district: districtIndex,
+      geo_cluster: districtIndex % 35,
+      rainfall_7d_mm: rain7d,
+      monthly_rainfall_mm: rainMonthly,
+      elevation_m: elevation,
+      distance_to_river_m: heuristics.distRiver,
+      nearest_hospital_km: manualHospitalKm !== null ? manualHospitalKm : heuristics.hosp,
+      nearest_evac_km: heuristics.evac,
+      infrastructure_score: heuristics.infra,
+      population_density_per_km2: heuristics.pop,
+      landcover: heuristics.cover,
+      soil_type: heuristics.soil,
+      water_supply: 0,
+      electricity: 0,
+      road_quality: heuristics.road,
+      urban_rural: heuristics.ur,
+      water_presence_flag: waterFlag,
       flood_occurrence_current_event: floodEvent,
       is_good_to_live: floodEvent === 1 ? 0 : 1,
     };
@@ -576,48 +587,72 @@ export default function UserDashboardPage() {
             </div>
           </div>
 
-          {/* Environmental Checklist Card */}
-          <div className="glass-card" style={{ padding: '20px 20px 16px' }}>
-            <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--color-text-primary)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>✍️</span> Environmental Checklist
+          {/* Auto-Detected Data Card */}
+          <div className="glass-card" style={{ padding: '20px 20px 16px', marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--color-text-primary)', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>🤖</span> Auto-Detected Environmental Data
+              </div>
+              <span style={{ fontSize: '0.65rem', background: 'rgba(6, 182, 212, 0.1)', color: 'var(--color-primary-light)', padding: '4px 8px', borderRadius: 20, border: '1px solid rgba(6, 182, 212, 0.2)' }}>
+                Powered by AI & Satellite Data
+              </span>
             </div>
+            
+            <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: 16 }}>
+              The following parameters are automatically fetched or calculated based on your selected location on the map.
+            </p>
 
-            {/* Water proximity */}
-            <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>River or Canal Nearby?</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <button style={btnGroup(waterProximity === 'near')} onClick={() => setWaterProximity('near')}>🌊 Yes, Visible</button>
-                <button style={btnGroup(waterProximity === 'far')}  onClick={() => setWaterProximity('far')}>🏞️ No, Far Away</button>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 16px', fontSize: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border-subtle)', paddingBottom: 6 }}>
+                <span style={{ color: 'var(--color-text-secondary)' }}>Elevation</span>
+                <span style={{ color: 'var(--color-primary-light)', fontWeight: 600 }}>{elevation.toFixed(1)} m</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border-subtle)', paddingBottom: 6 }}>
+                <span style={{ color: 'var(--color-text-secondary)' }}>7-Day Rainfall</span>
+                <span style={{ color: 'var(--color-primary-light)', fontWeight: 600 }}>{weather?.rain7d?.toFixed(1) ?? 0} mm</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border-subtle)', paddingBottom: 6 }}>
+                <span style={{ color: 'var(--color-text-secondary)' }}>Dist. to River</span>
+                <span style={{ color: 'var(--color-primary-light)', fontWeight: 600 }}>{DISTRICT_DATA_DICTIONARY[DISTRICTS[districtIndex]]?.distRiver || 2000} m</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border-subtle)', paddingBottom: 6 }}>
+                <span style={{ color: 'var(--color-text-secondary)' }}>Pop. Density</span>
+                <span style={{ color: 'var(--color-primary-light)', fontWeight: 600 }}>{DISTRICT_DATA_DICTIONARY[DISTRICTS[districtIndex]]?.pop || 1000}/km²</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border-subtle)', paddingBottom: 6 }}>
+                <span style={{ color: 'var(--color-text-secondary)' }}>Nearest Hosp.</span>
+                <span style={{ color: 'var(--color-primary-light)', fontWeight: 600 }}>{manualHospitalKm !== null ? manualHospitalKm : (DISTRICT_DATA_DICTIONARY[DISTRICTS[districtIndex]]?.hosp || 5)} km</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border-subtle)', paddingBottom: 6 }}>
+                <span style={{ color: 'var(--color-text-secondary)' }}>Infra. Score</span>
+                <span style={{ color: 'var(--color-primary-light)', fontWeight: 600 }}>{DISTRICT_DATA_DICTIONARY[DISTRICTS[districtIndex]]?.infra || 6.0}/10</span>
+              </div>
+            </div>
+            
+            <div style={{ marginTop: 16 }}>
+              <label style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', fontWeight: 600, display: 'block', marginBottom: 8 }}>
+                Adjust Nearest Hospital Distance (km)
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <input
+                  type="range"
+                  min="0"
+                  max="50"
+                  step="1"
+                  value={manualHospitalKm !== null ? manualHospitalKm : (DISTRICT_DATA_DICTIONARY[DISTRICTS[districtIndex]]?.hosp || 5)}
+                  onChange={(e) => setManualHospitalKm(parseFloat(e.target.value))}
+                  style={{ flex: 1, accentColor: 'var(--color-primary)' }}
+                />
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-primary)', minWidth: 40 }}>
+                  {manualHospitalKm !== null ? manualHospitalKm : (DISTRICT_DATA_DICTIONARY[DISTRICTS[districtIndex]]?.hosp || 5)}
+                </span>
               </div>
             </div>
 
-            {/* Rain situation */}
-            <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>Current Rain Condition</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                <button style={btnGroup(rainSituation === 'dry')}   onClick={() => setRainSituation('dry')}>☀️ Dry</button>
-                <button style={btnGroup(rainSituation === 'light')} onClick={() => setRainSituation('light')}>🌦️ Light</button>
-                <button style={btnGroup(rainSituation === 'heavy')} onClick={() => setRainSituation('heavy')}>⛈️ Heavy</button>
-              </div>
-            </div>
-
-            {/* Infrastructure */}
-            <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>Infrastructure Quality</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                <button style={btnGroup(infraQuality === 'good')} onClick={() => setInfraQuality('good')}>🟢 Good</button>
-                <button style={btnGroup(infraQuality === 'fair')} onClick={() => setInfraQuality('fair')}>🟡 Fair</button>
-                <button style={btnGroup(infraQuality === 'poor')} onClick={() => setInfraQuality('poor')}>🔴 Poor</button>
-              </div>
-            </div>
-
-            {/* Area type */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>Settlement Type</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <button style={btnGroup(areaType === 'urban')} onClick={() => setAreaType('urban')}>🏢 Urban</button>
-                <button style={btnGroup(areaType === 'rural')} onClick={() => setAreaType('rural')}>🏡 Rural</button>
-              </div>
+            <div style={{ marginTop: 16, textAlign: 'center', marginBottom: 16 }}>
+              <span style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)' }}>
+                *If you wish to manually override other parameters, please switch to <b>Research Mode</b>.
+              </span>
             </div>
 
             {predictError && (
