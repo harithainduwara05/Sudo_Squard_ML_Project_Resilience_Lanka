@@ -43,7 +43,7 @@ async def predict_flood_risk(
     """Run inference and return the risk assessment."""
 
     # ── Run the ML model ──────────────────────────────────────────────────
-    score, risk_level, risk_color = ml_service.predict(payload)
+    score, risk_level, risk_color, feature_importance = ml_service.predict(payload)
 
     # ── Build response ────────────────────────────────────────────────────
     prediction_id: str = str(uuid.uuid4())
@@ -55,6 +55,8 @@ async def predict_flood_risk(
         risk_level=risk_level,
         timestamp=timestamp,
         risk_color=risk_color,
+        feature_importance=feature_importance,
+        input_data=payload.model_dump(),
     )
 
     # ── Async log to MongoDB (non-blocking) ───────────────────────────────
@@ -69,3 +71,31 @@ async def predict_flood_risk(
     background_tasks.add_task(db_service.log_prediction, log_entry)
 
     return response
+
+
+@router.post(
+    "/simulate",
+    response_model=dict,
+    summary="Simulate what-if scenario",
+)
+async def simulate_scenario(
+    payload: dict,
+    ml_service=Depends(get_ml_service),
+):
+    """Run a scenario simulation varying a specific feature."""
+    from app.models.schemas import SimulationRequest, SimulationResponse
+    
+    req = SimulationRequest(**payload)
+    
+    data_points = ml_service.simulate_feature(
+        base_request=req.base_request,
+        target_feature=req.target_feature,
+        min_value=req.min_value,
+        max_value=req.max_value,
+        steps=req.steps
+    )
+    
+    return SimulationResponse(
+        target_feature=req.target_feature,
+        data_points=data_points
+    ).model_dump()

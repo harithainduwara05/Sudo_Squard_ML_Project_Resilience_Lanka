@@ -55,6 +55,7 @@ export default function Header() {
           {/* Navigation + User */}
           <div className="flex items-center gap-4">
             <nav className="flex items-center gap-1">
+<<<<<<< HEAD
               <NavLink
                 to="/"
                 end
@@ -70,9 +71,51 @@ export default function Header() {
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M2 2h5v6H2V2zm7 0h5v4H9V2zM2 10h5v4H2v-4zm7-2h5v6H9V8z" opacity="0.9"/>
                   </svg>
-                  Dashboard
+                  Research Mode
                 </span>
               </NavLink>
+              <NavLink
+                to="/user"
+                className={({ isActive }) =>
+                  `px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                    isActive
+                      ? 'text-primary-light bg-primary/10'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                  }`
+                }
+              >
+                <span className="flex items-center gap-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                  Citizen Mode
+                </span>
+              </NavLink>
+=======
+              {user?.role !== 'admin' && (
+                <NavLink
+                  to="/"
+                  end
+                  className={({ isActive }) =>
+                    `px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                      isActive
+                        ? 'text-primary-light bg-primary/10'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                    }`
+                  }
+                >
+                  <span className="flex items-center gap-2">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M2 2h5v6H2V2zm7 0h5v4H9V2zM2 10h5v4H2v-4zm7-2h5v6H9V8z" opacity="0.9"/>
+                    </svg>
+                    Dashboard
+                  </span>
+                </NavLink>
+              )}
+>>>>>>> b225a174f00121a763bcbecb9a216efcea10487e
               <NavLink
                 to="/analytics"
                 className={({ isActive }) =>

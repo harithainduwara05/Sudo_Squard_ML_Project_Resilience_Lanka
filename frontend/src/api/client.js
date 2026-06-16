@@ -21,6 +21,19 @@ export async function predictFloodRisk(data) {
 }
 
 /**
+ * Simulate flood risk based on a varying feature
+ */
+export async function simulateRisk(data) {
+  try {
+    const response = await api.post('/api/simulate', data);
+    return response.data;
+  } catch (error) {
+    console.error('Simulation API error:', error);
+    throw error.response?.data || { detail: 'Failed to run simulation. Please try again.' };
+  }
+}
+
+/**
  * Submit user feedback on a prediction
  */
 export async function submitFeedback(data) {

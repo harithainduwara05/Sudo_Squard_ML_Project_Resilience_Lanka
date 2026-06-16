@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -114,6 +114,102 @@ function blurHandler(e) {
   e.target.style.boxShadow = 'none';
 }
 
+/* ─── Custom Glass Dropdown ─── */
+function CustomDropdown({ value, onChange, options }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (ref.current && !ref.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find(opt => opt.value === value) || options[0];
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          ...inputStyle,
+          cursor: 'pointer',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderColor: isOpen ? '#06b6d4' : 'rgba(56, 189, 248, 0.1)',
+          boxShadow: isOpen ? '0 0 0 3px rgba(6, 182, 212, 0.1)' : 'none',
+        }}
+      >
+        <span>{selectedOption.label}</span>
+        <motion.svg
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </motion.svg>
+      </div>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              marginTop: '8px',
+              background: 'rgba(15, 23, 42, 0.85)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: '1px solid rgba(56, 189, 248, 0.2)',
+              borderRadius: '12px',
+              padding: '6px',
+              zIndex: 50,
+              boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+            }}
+          >
+            {options.map((opt) => (
+              <div
+                key={opt.value}
+                onClick={() => {
+                  onChange(opt.value);
+                  setIsOpen(false);
+                }}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem',
+                  color: value === opt.value ? '#22d3ee' : '#f1f5f9',
+                  background: value === opt.value ? 'rgba(6, 182, 212, 0.1)' : 'transparent',
+                  transition: 'background 0.2s',
+                }}
+                onMouseEnter={e => {
+                  if (value !== opt.value) e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                }}
+                onMouseLeave={e => {
+                  if (value !== opt.value) e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                {opt.label}
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function RegisterPage() {
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -121,6 +217,7 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [organization, setOrganization] = useState('');
+  const [role, setRole] = useState('officer');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -156,6 +253,7 @@ export default function RegisterPage() {
         full_name: fullName.trim(),
         email,
         organization: organization.trim() || undefined,
+        role,
         password,
       });
       login(data);
@@ -333,21 +431,36 @@ export default function RegisterPage() {
                 />
               </div>
 
-              {/* Organization */}
-              <div>
-                <label htmlFor="reg-org" style={labelStyle}>
-                  Organization <span style={{ color: '#64748b', textTransform: 'none', fontWeight: 400 }}>(Optional)</span>
-                </label>
-                <input
-                  id="reg-org"
-                  type="text"
-                  value={organization}
-                  onChange={e => setOrganization(e.target.value)}
-                  placeholder="e.g. DMC"
-                  style={inputStyle}
-                  onFocus={focusHandler}
-                  onBlur={blurHandler}
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Organization */}
+                <div>
+                  <label htmlFor="reg-org" style={labelStyle}>
+                    Organization <span style={{ color: '#64748b', textTransform: 'none', fontWeight: 400 }}>(Optional)</span>
+                  </label>
+                  <input
+                    id="reg-org"
+                    type="text"
+                    value={organization}
+                    onChange={e => setOrganization(e.target.value)}
+                    placeholder="e.g. DMC"
+                    style={inputStyle}
+                    onFocus={focusHandler}
+                    onBlur={blurHandler}
+                  />
+                </div>
+
+                {/* Role */}
+                <div>
+                  <label style={labelStyle}>Role</label>
+                  <CustomDropdown
+                    value={role}
+                    onChange={setRole}
+                    options={[
+                      { value: 'officer', label: 'Member' },
+                      { value: 'researcher', label: 'Researcher' }
+                    ]}
+                  />
+                </div>
               </div>
 
               {/* Password */}
