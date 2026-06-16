@@ -651,7 +651,7 @@ export default function UserDashboardPage() {
 
             <div style={{ marginTop: 16, textAlign: 'center', marginBottom: 16 }}>
               <span style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)' }}>
-                *If you wish to manually override other parameters, please switch to <b>Research Mode</b>.
+                *If you wish to manually override other parameters, please use the advanced dashboard.
               </span>
             </div>
 

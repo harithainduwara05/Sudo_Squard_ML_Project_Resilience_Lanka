@@ -115,6 +115,19 @@ export async function updateAdminUserStatus(userId, isActive) {
   }
 }
 
+/**
+ * Permanently delete a user
+ */
+export async function deleteAdminUser(userId) {
+  try {
+    await api.delete(`/api/admin/users/${userId}`);
+    return true;
+  } catch (error) {
+    console.error('Admin delete user API error:', error);
+    throw error.response?.data || { detail: 'Failed to delete user.' };
+  }
+}
+
 // ─── Auth Interceptor ───
 // Add request interceptor to include JWT token
 api.interceptors.request.use((config) => {
