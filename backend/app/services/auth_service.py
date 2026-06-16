@@ -116,7 +116,7 @@ class AuthService:
             )
 
         user_count = await self.users_collection.count_documents({})
-        assigned_role = "admin" if user_count == 0 else "officer"
+        assigned_role = "admin" if user_count == 0 else "user"
 
         user_doc = {
             "full_name": request.full_name,
@@ -241,6 +241,16 @@ class AuthService:
         user = await self.users_collection.find_one({"_id": object_id})
         return self._serialize_user(user)
 
+    async def delete_user(self, user_id: str) -> None:
+        """Permanently remove a user account."""
+        object_id = self._to_object_id(user_id)
+        result = await self.users_collection.delete_one({"_id": object_id})
+        if result.deleted_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+
     def _to_object_id(self, user_id: str) -> ObjectId:
         """Convert a string to ObjectId with a consistent API error."""
         try:
@@ -253,12 +263,16 @@ class AuthService:
 
     def _serialize_user(self, user: dict) -> dict:
         """Return the public user shape used by API responses."""
+        role = user["role"]
+        if role in {"officer", "researcher"}:
+            role = "user"
+
         return {
             "id": str(user["_id"]),
             "full_name": user["full_name"],
             "email": user["email"],
             "organization": user.get("organization"),
-            "role": user["role"],
+            "role": role,
             "created_at": user["created_at"],
             "is_active": user.get("is_active", True),
         }

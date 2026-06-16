@@ -41,7 +41,7 @@ export default function DashboardPage() {
             <>
               <ResultCard result={result} />
               
-              {user?.role === 'researcher' && result?.feature_importance && (
+              {result?.feature_importance && (
                 <div className="glass-card p-6 border-l-4" style={{ borderColor: '#8b5cf6' }}>
                   <div className="flex items-center gap-2 mb-4">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -50,9 +50,6 @@ export default function DashboardPage() {
                       <line x1="12" y1="22.08" x2="12" y2="12"></line>
                     </svg>
                     <h3 className="font-semibold text-text-primary">Model Insights (XAI)</h3>
-                    <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                      Researcher Only
-                    </span>
                   </div>
                   <p className="text-sm text-text-muted mb-5">
                     Top contributing factors to this specific flood risk score:
@@ -78,7 +75,7 @@ export default function DashboardPage() {
               )}
               
               {/* Simulation Widget */}
-              {user?.role === 'researcher' && result && (
+              {result && (
                 <SimulationWidget baseRequest={result.input_data || result} />
               )}
 

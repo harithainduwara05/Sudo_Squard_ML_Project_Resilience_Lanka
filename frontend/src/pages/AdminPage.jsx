@@ -1,13 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
+  deleteAdminUser,
   getAdminOverview,
   getAdminUsers,
   updateAdminUserRole,
   updateAdminUserStatus,
 } from '../api/client';
 
-const roles = ['officer', 'researcher', 'admin'];
+const roles = [
+  { value: 'user', label: 'User' },
+  { value: 'admin', label: 'Admin' },
+];
+
+const riskColors = {
+  low: '#10b981',
+  medium: '#f59e0b',
+  high: '#ef4444',
+  critical: '#dc2626',
+};
 
 function formatNumber(value) {
   return Number(value || 0).toLocaleString();
@@ -50,6 +61,92 @@ function EmptyState({ children }) {
   );
 }
 
+function BarList({ items, valueKey, labelKey = 'district', color = '#06b6d4', emptyText }) {
+  const maxValue = Math.max(...items.map((item) => Number(item[valueKey] || 0)), 0);
+
+  if (items.length === 0 || maxValue === 0) {
+    return <EmptyState>{emptyText}</EmptyState>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {items.map((item) => {
+        const value = Number(item[valueKey] || 0);
+        const width = maxValue ? Math.max(8, (value / maxValue) * 100) : 0;
+        return (
+          <div key={item[labelKey]}>
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <span className="text-sm font-medium text-text-primary">{item[labelKey]}</span>
+              <span className="text-xs text-text-muted tabular-nums">
+                {valueKey.includes('score') ? value.toFixed(3) : formatNumber(value)}
+              </span>
+            </div>
+            <div className="h-2 rounded-full bg-bg-elevated overflow-hidden">
+              <div
+                className="h-full rounded-full"
+                style={{ width: `${width}%`, background: color }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function RiskDistribution({ distribution }) {
+  const entries = ['low', 'medium', 'high', 'critical'].map((key) => ({
+    key,
+    label: key.charAt(0).toUpperCase() + key.slice(1),
+    value: Number(distribution?.[key] || 0),
+  }));
+  const total = entries.reduce((sum, item) => sum + item.value, 0);
+
+  if (!total) {
+    return <EmptyState>No risk distribution data yet.</EmptyState>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex h-3 rounded-full overflow-hidden bg-bg-elevated">
+        {entries.map((item) => (
+          <div
+            key={item.key}
+            style={{
+              width: `${(item.value / total) * 100}%`,
+              background: riskColors[item.key],
+            }}
+          />
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {entries.map((item) => (
+          <div key={item.key} className="rounded-lg border border-border-subtle bg-bg-card/60 p-3">
+            <div className="flex items-center gap-2">
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ background: riskColors[item.key] }}
+              />
+              <span className="text-xs text-text-muted">{item.label}</span>
+            </div>
+            <p className="mt-1 text-lg font-semibold text-text-primary">{formatNumber(item.value)}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function InsightCard({ title, subtitle, children }) {
+  return (
+    <section className="glass-card p-5">
+      <h3 className="text-lg font-semibold text-text-primary">{title}</h3>
+      <p className="text-xs text-text-muted mt-1 mb-5">{subtitle}</p>
+      {children}
+    </section>
+  );
+}
+
 export default function AdminPage() {
   const { user } = useAuth();
   const [overview, setOverview] = useState(null);
@@ -60,6 +157,7 @@ export default function AdminPage() {
   const [savingUserId, setSavingUserId] = useState(null);
 
   const feedback = overview?.feedback || {};
+  const riskInsights = overview?.risk_insights || {};
   const recentIssues = feedback.recent_inaccurate_feedback || [];
 
   const filteredUsers = useMemo(() => users, [users]);
@@ -127,6 +225,24 @@ export default function AdminPage() {
     }
   };
 
+  const handleDeleteUser = async (targetUser) => {
+    const confirmed = window.confirm(
+      `Delete ${targetUser.full_name}? This permanently removes the account.`
+    );
+    if (!confirmed) return;
+
+    setSavingUserId(targetUser.id);
+    setError('');
+    try {
+      await deleteAdminUser(targetUser.id);
+      setUsers((current) => current.filter((item) => item.id !== targetUser.id));
+    } catch (err) {
+      setError(typeof err.detail === 'string' ? err.detail : 'Unable to delete user.');
+    } finally {
+      setSavingUserId(null);
+    }
+  };
+
   return (
     <div className="animate-fade-in">
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -188,6 +304,41 @@ export default function AdminPage() {
         </div>
       )}
 
+      {!loading && (
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
+          <InsightCard
+            title="High-Risk Areas"
+            subtitle="Districts with recent high-risk predictions."
+          >
+            <BarList
+              items={riskInsights.high_risk_areas || []}
+              valueKey="max_score"
+              color="#ef4444"
+              emptyText="No high-risk areas recorded yet."
+            />
+          </InsightCard>
+
+          <InsightCard
+            title="24h Risk Watchlist"
+            subtitle="Projected from recent prediction patterns."
+          >
+            <BarList
+              items={riskInsights.risk_watchlist_24h || []}
+              valueKey="projected_score"
+              color="#f59e0b"
+              emptyText="No districts currently need 24h watchlist attention."
+            />
+          </InsightCard>
+
+          <InsightCard
+            title="Risk Distribution"
+            subtitle="Logged predictions by risk category."
+          >
+            <RiskDistribution distribution={riskInsights.risk_distribution || {}} />
+          </InsightCard>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <section className="xl:col-span-2 glass-card p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
@@ -221,7 +372,7 @@ export default function AdminPage() {
                     <th className="py-3 px-4 font-medium">Role</th>
                     <th className="py-3 px-4 font-medium">Status</th>
                     <th className="py-3 px-4 font-medium">Created</th>
-                    <th className="py-3 pl-4 font-medium text-right">Action</th>
+                    <th className="py-3 pl-4 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -242,11 +393,12 @@ export default function AdminPage() {
                             value={item.role}
                             disabled={isSaving || (isCurrentUser && item.role === 'admin')}
                             onChange={(event) => handleRoleChange(item, event.target.value)}
-                            className="min-w-32"
+                            className="min-w-32 bg-white/5 backdrop-blur-md border border-white/10 rounded-lg px-3 py-1.5 text-sm text-text-primary focus:border-primary/50 outline-none hover:bg-white/10 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.1)] appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{ backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right .7rem top 50%', backgroundSize: '.65rem auto', paddingRight: '2rem' }}
                           >
                             {roles.map((role) => (
-                              <option key={role} value={role}>
-                                {role.charAt(0).toUpperCase() + role.slice(1)}
+                              <option key={role.value} value={role.value} className="bg-slate-900 text-text-primary">
+                                {role.label}
                               </option>
                             ))}
                           </select>
@@ -266,18 +418,28 @@ export default function AdminPage() {
                           {formatDate(item.created_at)}
                         </td>
                         <td className="py-4 pl-4 text-right">
-                          <button
-                            type="button"
-                            disabled={isSaving || isCurrentUser}
-                            onClick={() => handleStatusChange(item)}
-                            className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
-                              item.is_active
-                                ? 'text-risk-high border border-risk-high/30 hover:bg-risk-high/10'
-                                : 'text-risk-low border border-risk-low/30 hover:bg-risk-low/10'
-                            } disabled:opacity-40 disabled:cursor-not-allowed`}
-                          >
-                            {item.is_active ? 'Deactivate' : 'Activate'}
-                          </button>
+                          <div className="flex flex-wrap items-center justify-end gap-2 min-w-[160px]">
+                            <button
+                              type="button"
+                              disabled={isSaving || isCurrentUser}
+                              onClick={() => handleStatusChange(item)}
+                              className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                                item.is_active
+                                  ? 'text-risk-high border border-risk-high/30 hover:bg-risk-high/10'
+                                  : 'text-risk-low border border-risk-low/30 hover:bg-risk-low/10'
+                              } disabled:opacity-40 disabled:cursor-not-allowed`}
+                            >
+                              {item.is_active ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isSaving || isCurrentUser}
+                              onClick={() => handleDeleteUser(item)}
+                              className="px-3 py-2 rounded-lg text-xs font-semibold text-risk-high border border-risk-high/30 transition-colors hover:bg-risk-high/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

@@ -14,7 +14,7 @@ class AdminRoleUpdate(BaseModel):
 
     role: str = Field(
         ...,
-        pattern="^(officer|admin|researcher)$",
+        pattern="^(user|admin)$",
         description="New role for the selected user.",
     )
 
@@ -45,6 +45,7 @@ class AdminOverviewResponse(BaseModel):
     high_risk_count: int = 0
     avg_risk_score: float = 0.0
     feedback: FeedbackAccuracySummary = Field(default_factory=FeedbackAccuracySummary)
+    risk_insights: dict[str, Any] = Field(default_factory=dict)
 
 
 class AdminUsersResponse(BaseModel):

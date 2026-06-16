@@ -217,7 +217,6 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [organization, setOrganization] = useState('');
-  const [role, setRole] = useState('officer');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -253,7 +252,7 @@ export default function RegisterPage() {
         full_name: fullName.trim(),
         email,
         organization: organization.trim() || undefined,
-        role,
+        role: 'user',
         password,
       });
       login(data);
@@ -317,7 +316,7 @@ export default function RegisterPage() {
             }} />
 
             <p style={{ color: '#64748b', fontSize: '0.85rem', lineHeight: 1.7 }}>
-              Join disaster management officers and researchers already using Resilience Lanka to protect communities.
+              Join field teams and community planners already using Resilience Lanka to protect communities.
             </p>
           </motion.div>
 
@@ -431,36 +430,21 @@ export default function RegisterPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Organization */}
-                <div>
-                  <label htmlFor="reg-org" style={labelStyle}>
-                    Organization <span style={{ color: '#64748b', textTransform: 'none', fontWeight: 400 }}>(Optional)</span>
-                  </label>
-                  <input
-                    id="reg-org"
-                    type="text"
-                    value={organization}
-                    onChange={e => setOrganization(e.target.value)}
-                    placeholder="e.g. DMC"
-                    style={inputStyle}
-                    onFocus={focusHandler}
-                    onBlur={blurHandler}
-                  />
-                </div>
-
-                {/* Role */}
-                <div>
-                  <label style={labelStyle}>Role</label>
-                  <CustomDropdown
-                    value={role}
-                    onChange={setRole}
-                    options={[
-                      { value: 'officer', label: 'Member' },
-                      { value: 'researcher', label: 'Researcher' }
-                    ]}
-                  />
-                </div>
+              {/* Organization */}
+              <div>
+                <label htmlFor="reg-org" style={labelStyle}>
+                  Organization <span style={{ color: '#64748b', textTransform: 'none', fontWeight: 400 }}>(Optional)</span>
+                </label>
+                <input
+                  id="reg-org"
+                  type="text"
+                  value={organization}
+                  onChange={e => setOrganization(e.target.value)}
+                  placeholder="e.g. DMC"
+                  style={inputStyle}
+                  onFocus={focusHandler}
+                  onBlur={blurHandler}
+                />
               </div>
 
               {/* Password */}
