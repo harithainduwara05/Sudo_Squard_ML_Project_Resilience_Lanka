@@ -13,8 +13,8 @@ class RegisterRequest(BaseModel):
     password: str = Field(..., min_length=6, description="User's password")
     organization: Optional[str] = None
     role: str = Field(
-        default="officer",
-        pattern="^(officer|admin|researcher)$",
+        default="user",
+        pattern="^(user|admin)$",
         description="Requested user role. Only the first bootstrap user becomes admin.",
     )
 

@@ -48,6 +48,7 @@ async def get_admin_overview(
     user_counts = await auth_service.get_user_counts()
     analytics = await db_service.get_analytics()
     feedback = await db_service.get_feedback_accuracy()
+    risk_insights = await db_service.get_admin_risk_insights()
 
     return AdminOverviewResponse(
         total_users=user_counts["total_users"],
@@ -57,6 +58,7 @@ async def get_admin_overview(
         high_risk_count=analytics["high_risk_count"],
         avg_risk_score=analytics["avg_risk_score"],
         feedback=feedback,
+        risk_insights=risk_insights,
     )
 
 
@@ -112,3 +114,19 @@ async def update_admin_user_status(
         is_active=body.is_active,
     )
     return UserResponse(**updated)
+
+
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_admin_user(
+    user_id: str,
+    admin: dict = Depends(require_admin),
+    auth_service=Depends(get_auth_service),
+) -> None:
+    """Permanently delete a user account."""
+    if user_id == admin["id"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot delete your own account",
+        )
+
+    await auth_service.delete_user(user_id=user_id)
