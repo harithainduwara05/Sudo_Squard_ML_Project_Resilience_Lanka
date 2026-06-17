@@ -34,11 +34,11 @@ class PredictionRequest(BaseModel):
 
     # ── Continuous environmental features ─────────────────────────────────
     rainfall_7d_mm: float = Field(
-        default=50.0, ge=0.0, le=500.0,
+        default=50.0, ge=0.0, le=2000.0,
         description="Cumulative rainfall in the last 7 days (mm)",
     )
     monthly_rainfall_mm: float = Field(
-        default=200.0, ge=0.0, le=2000.0,
+        default=200.0, ge=0.0, le=5000.0,
         description="Total rainfall for the current month (mm)",
     )
     elevation_m: float = Field(
@@ -58,7 +58,7 @@ class PredictionRequest(BaseModel):
         description="Distance to the nearest evacuation center (km)",
     )
     population_density_per_km2: float = Field(
-        default=500.0, ge=0.0, le=5000.0,
+        default=500.0, ge=0.0, le=25000.0,
         description="Population density (people per km²)",
     )
     infrastructure_score: float = Field(

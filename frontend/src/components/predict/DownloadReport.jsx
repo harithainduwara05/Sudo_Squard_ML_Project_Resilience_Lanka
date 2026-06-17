@@ -6,7 +6,7 @@ import { DISTRICTS } from '../../utils/constants';
  * Uses jspdf + html2canvas to render a hidden DOM element as a PDF.
  * Works in both User Mode and Advanced Mode.
  */
-export default function DownloadReport({ prediction, weather, locationName, districtIndex, lat, lng, mode = 'user' }) {
+export default function DownloadReport({ prediction, previousPrediction, weather, locationName, districtIndex, lat, lng, mode = 'user' }) {
   const [generating, setGenerating] = useState(false);
   const reportRef = useRef(null);
 
@@ -84,13 +84,20 @@ export default function DownloadReport({ prediction, weather, locationName, dist
         width: 800, padding: 40, fontFamily: "'Inter', 'Segoe UI', sans-serif",
         background: '#0f172a', color: '#e2e8f0',
       }}>
-        {/* Header */}
-        <div style={{ borderBottom: '2px solid #06b6d4', paddingBottom: 20, marginBottom: 24 }}>
-          <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: '#22d3ee' }}>
-            Resilience Lanka
+        {/* Header with Premium Aesthetic */}
+        <div style={{ 
+          background: 'linear-gradient(135deg, #0f172a, #1e293b)', 
+          borderBottom: '2px solid #06b6d4', 
+          padding: '24px', 
+          margin: '-40px -40px 24px -40px',
+          borderTopLeftRadius: 8,
+          borderTopRightRadius: 8
+        }}>
+          <h1 style={{ fontSize: 32, fontWeight: 800, margin: 0, color: '#22d3ee', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span>🌊</span> Resilience Lanka
           </h1>
-          <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 4, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-            Flood Risk Assessment Report
+          <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 8, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600 }}>
+            Comprehensive Flood Risk Assessment
           </p>
         </div>
 
@@ -148,19 +155,65 @@ export default function DownloadReport({ prediction, weather, locationName, dist
 
         {/* Feature Importance (Advanced Mode) */}
         {mode === 'advanced' && prediction.feature_importance && (
-          <div style={{ marginBottom: 24 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>Model Feature Importance</h3>
+          <div style={{ marginBottom: 24, background: '#1e293b', padding: 20, borderRadius: 12 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>Model Feature Importance</h3>
             {prediction.feature_importance.map((f, i) => (
-              <div key={i} style={{ marginBottom: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                  <span style={{ color: '#cbd5e1' }}>{f.feature}</span>
-                  <span style={{ color: '#8b5cf6', fontWeight: 600 }}>{f.importance}%</span>
+              <div key={i} style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
+                  <span style={{ color: '#cbd5e1', fontWeight: 600 }}>{f.feature}</span>
+                  <span style={{ color: '#8b5cf6', fontWeight: 700 }}>{f.importance}%</span>
                 </div>
-                <div style={{ height: 8, borderRadius: 4, background: '#1e293b', overflow: 'hidden' }}>
+                <div style={{ height: 8, borderRadius: 4, background: '#0f172a', overflow: 'hidden' }}>
                   <div style={{ height: '100%', borderRadius: 4, width: `${f.importance}%`, background: 'linear-gradient(90deg, #8b5cf6, #3b82f6)' }} />
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Historical Comparison */}
+        {previousPrediction && previousPrediction.prediction_id !== prediction.prediction_id && (
+          <div style={{ marginBottom: 24, background: '#1e293b', borderRadius: 12, padding: 20, border: '1px solid #334155' }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+              Historical Comparison
+            </h3>
+            <p style={{ fontSize: 11, color: '#cbd5e1', marginBottom: 20, fontStyle: 'italic' }}>
+              Comparing current risk assessment against the previous prediction for this location.
+            </p>
+
+            {/* Risk Score Comparison */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
+                <span style={{ color: '#94a3b8', fontWeight: 600 }}>Previous Risk Score (ID: {previousPrediction.prediction_id.slice(0, 6)})</span>
+                <span style={{ color: '#cbd5e1', fontWeight: 700 }}>{Math.round(previousPrediction.flood_risk_score * 100)}%</span>
+              </div>
+              <div style={{ height: 12, borderRadius: 6, background: '#0f172a', overflow: 'hidden' }}>
+                <div style={{ height: '100%', borderRadius: 6, width: `${previousPrediction.flood_risk_score * 100}%`, background: previousPrediction.risk_color || '#64748b' }} />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
+                <span style={{ color: '#94a3b8', fontWeight: 600 }}>Current Risk Score (ID: {prediction.prediction_id.slice(0, 6)})</span>
+                <span style={{ color: '#cbd5e1', fontWeight: 700 }}>{Math.round(prediction.flood_risk_score * 100)}%</span>
+              </div>
+              <div style={{ height: 12, borderRadius: 6, background: '#0f172a', overflow: 'hidden', boxShadow: '0 0 10px rgba(0,0,0,0.5)' }}>
+                <div style={{ height: '100%', borderRadius: 6, width: `${prediction.flood_risk_score * 100}%`, background: prediction.risk_color || '#64748b' }} />
+              </div>
+            </div>
+
+            {/* Insight */}
+            <div style={{ marginTop: 20, padding: '14px 16px', background: 'rgba(6, 182, 212, 0.1)', borderLeft: '4px solid #06b6d4', borderRadius: '0 8px 8px 0' }}>
+              <p style={{ fontSize: 12, color: '#e2e8f0', lineHeight: 1.5 }}>
+                <strong style={{ color: '#22d3ee' }}>Insight: </strong> 
+                The flood risk score has 
+                <strong style={{ color: prediction.flood_risk_score > previousPrediction.flood_risk_score ? '#ef4444' : '#10b981' }}>
+                  {prediction.flood_risk_score >= previousPrediction.flood_risk_score ? ' increased ' : ' decreased '} 
+                  by {Math.abs(Math.round((prediction.flood_risk_score - previousPrediction.flood_risk_score) * 100))}% 
+                </strong> 
+                since the last assessment for {districtName}.
+              </p>
+            </div>
           </div>
         )}
 

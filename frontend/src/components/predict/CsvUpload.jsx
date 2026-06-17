@@ -2,7 +2,6 @@ import { useState, useRef } from 'react';
 import { predictFloodRisk } from '../../api/client';
 import { DISTRICTS } from '../../utils/constants';
 
-const MAX_ROWS = 20;
 
 const REQUIRED_COLUMNS = [
   'latitude', 'longitude', 'district', 'rainfall_7d_mm', 'monthly_rainfall_mm',
@@ -28,28 +27,54 @@ function parseCsv(text) {
 }
 
 function buildPayload(row) {
+  const parseNum = (val, defaultVal, min, max) => {
+    const parsed = parseFloat(val);
+    const num = isNaN(parsed) ? defaultVal : parsed;
+    if (min !== undefined && num < min) return min;
+    if (max !== undefined && num > max) return max;
+    return num;
+  };
+
+  const parseIntSafe = (val, defaultVal, min, max) => {
+    const parsed = parseInt(val, 10);
+    const num = isNaN(parsed) ? defaultVal : parsed;
+    if (min !== undefined && num < min) return min;
+    if (max !== undefined && num > max) return max;
+    return num;
+  };
+
+  const parseDistrict = (val) => {
+    if (!val) return 0;
+    if (!isNaN(parseInt(val, 10))) return parseInt(val, 10);
+    const idx = DISTRICTS.findIndex(d => d.toLowerCase() === String(val).trim().toLowerCase());
+    return idx !== -1 ? idx : 0;
+  };
+
+  const district = parseDistrict(row.district);
+  const clampedDistrict = district < 0 ? 0 : (district > 25 ? 25 : district);
+
   return {
-    latitude: parseFloat(row.latitude) || 7.0,
-    longitude: parseFloat(row.longitude) || 80.0,
-    district: parseInt(row.district) || 0,
-    geo_cluster: (parseInt(row.district) || 0) % 35,
-    rainfall_7d_mm: parseFloat(row.rainfall_7d_mm) || 50,
-    monthly_rainfall_mm: parseFloat(row.monthly_rainfall_mm) || 200,
-    elevation_m: parseFloat(row.elevation_m) || 100,
-    distance_to_river_m: parseFloat(row.distance_to_river_m) || 5000,
-    nearest_hospital_km: parseFloat(row.nearest_hospital_km) || 10,
-    nearest_evac_km: parseFloat(row.nearest_evac_km) || 15,
-    population_density_per_km2: parseFloat(row.population_density_per_km2) || 500,
-    infrastructure_score: parseFloat(row.infrastructure_score) || 5,
-    landcover: parseInt(row.landcover) || 0,
-    soil_type: parseInt(row.soil_type) || 0,
-    water_supply: parseInt(row.water_supply) || 0,
-    electricity: parseInt(row.electricity) || 0,
-    road_quality: parseInt(row.road_quality) || 0,
-    urban_rural: parseInt(row.urban_rural) || 0,
-    water_presence_flag: parseInt(row.water_presence_flag) || 0,
-    flood_occurrence_current_event: parseInt(row.flood_occurrence_current_event) || 0,
-    is_good_to_live: parseInt(row.is_good_to_live) ?? 1,
+    latitude: parseNum(row.latitude, 7.0, 5.9, 9.9),
+    longitude: parseNum(row.longitude, 80.0, 79.5, 81.9),
+    district: clampedDistrict,
+    geo_cluster: clampedDistrict % 35,
+    rainfall_7d_mm: parseNum(row.rainfall_7d_mm, 50.0, 0.0, 500.0),
+    monthly_rainfall_mm: parseNum(row.monthly_rainfall_mm, 200.0, 0.0, 2000.0),
+    elevation_m: parseNum(row.elevation_m, 100.0, 0.0, 2500.0),
+    distance_to_river_m: parseNum(row.distance_to_river_m, 5000.0, 0.0, 50000.0),
+    nearest_hospital_km: parseNum(row.nearest_hospital_km, 10.0, 0.0, 100.0),
+    nearest_evac_km: parseNum(row.nearest_evac_km, 15.0, 0.0, 100.0),
+    population_density_per_km2: parseNum(row.population_density_per_km2, 500.0, 0.0, 5000.0),
+    infrastructure_score: parseNum(row.infrastructure_score, 5.0, 0.0, 10.0),
+    landcover: parseIntSafe(row.landcover, 0, 0, 10),
+    soil_type: parseIntSafe(row.soil_type, 0, 0, 10),
+    water_supply: parseIntSafe(row.water_supply, 0, 0, 5),
+    electricity: parseIntSafe(row.electricity, 0, 0, 5),
+    road_quality: parseIntSafe(row.road_quality, 0, 0, 5),
+    urban_rural: parseIntSafe(row.urban_rural, 0, 0, 2),
+    water_presence_flag: parseIntSafe(row.water_presence_flag, 0, 0, 1),
+    flood_occurrence_current_event: parseIntSafe(row.flood_occurrence_current_event, 0, 0, 1),
+    is_good_to_live: parseIntSafe(row.is_good_to_live, 1, 0, 1),
   };
 }
 
@@ -63,6 +88,7 @@ export default function CsvUpload() {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
   const [showFormat, setShowFormat] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
   const fileRef = useRef(null);
 
   const handleFile = async (e) => {
@@ -104,16 +130,14 @@ export default function CsvUpload() {
         return;
       }
 
-      const limitedRows = rows.slice(0, MAX_ROWS);
       const batchResults = [];
-
-      for (let i = 0; i < limitedRows.length; i++) {
+      for (let i = 0; i < rows.length; i++) {
         try {
-          const payload = buildPayload(limitedRows[i]);
+          const payload = buildPayload(rows[i]);
           const result = await predictFloodRisk(payload);
           batchResults.push({
             row: i + 1,
-            input: limitedRows[i],
+            input: rows[i],
             district: DISTRICTS[payload.district] || 'Unknown',
             lat: payload.latitude,
             lng: payload.longitude,
@@ -121,25 +145,22 @@ export default function CsvUpload() {
             level: result.risk_level,
             color: result.risk_color,
           });
-        } catch {
+        } catch (err) {
           batchResults.push({
             row: i + 1,
-            input: limitedRows[i],
+            input: rows[i],
             district: 'Error',
-            lat: parseFloat(limitedRows[i].latitude) || 0,
-            lng: parseFloat(limitedRows[i].longitude) || 0,
+            lat: parseFloat(rows[i].latitude) || 0,
+            lng: parseFloat(rows[i].longitude) || 0,
             score: -1,
             level: 'Error',
             color: '#64748b',
           });
         }
-        setProgress(Math.round(((i + 1) / limitedRows.length) * 100));
+        setProgress(Math.round(((i + 1) / rows.length) * 100));
       }
 
       setResults(batchResults);
-      if (rows.length > MAX_ROWS) {
-        setError(`Only first ${MAX_ROWS} rows processed (${rows.length} total in file).`);
-      }
     } catch {
       setError('Failed to parse CSV file.');
     } finally {
@@ -161,6 +182,79 @@ export default function CsvUpload() {
     a.download = `batch-results-${Date.now()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const downloadPdf = async () => {
+    if (results.length === 0) return;
+    setGeneratingPdf(true);
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+
+      const doc = new jsPDF('p', 'pt', 'a4');
+      const timestamp = new Date().toLocaleString();
+
+      // Header
+      doc.setFontSize(22);
+      doc.setTextColor(34, 211, 238); // Cyan
+      doc.text('Resilience Lanka', 40, 50);
+
+      doc.setFontSize(10);
+      doc.setTextColor(148, 163, 184); // Slate 400
+      doc.text('Bulk Flood Risk Assessment Report', 40, 70);
+      doc.text(`Generated: ${timestamp} | Total Predictions: ${results.length}`, 40, 85);
+
+      // Data formatting
+      const tableData = results.map(r => [
+        r.row,
+        r.district,
+        r.lat?.toFixed(3) || '-',
+        r.lng?.toFixed(3) || '-',
+        r.input?.rainfall_7d_mm || '-',
+        r.input?.elevation_m || '-',
+        r.score >= 0 ? (r.score * 100).toFixed(1) + '%' : 'Error',
+        r.level
+      ]);
+
+      autoTable(doc, {
+        startY: 110,
+        head: [['#', 'District', 'Lat', 'Lng', 'Rain (7d)', 'Elev', 'Risk %', 'Risk Level']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [15, 23, 42], textColor: 255, lineColor: [51, 65, 85], lineWidth: 1 },
+        bodyStyles: { fillColor: [30, 41, 59], textColor: 226, lineColor: [51, 65, 85], lineWidth: 1 },
+        alternateRowStyles: { fillColor: [15, 23, 42] },
+        styles: { fontSize: 8, cellPadding: 4, halign: 'center' },
+        columnStyles: {
+          6: { fontStyle: 'bold' },
+          7: { fontStyle: 'bold' }
+        },
+        didParseCell: function (data) {
+          if (data.section === 'body' && data.column.index === 7) {
+            const val = data.cell.raw;
+            if (val === 'Critical') data.cell.styles.textColor = [239, 68, 68];
+            else if (val === 'High') data.cell.styles.textColor = [248, 113, 113];
+            else if (val === 'Medium') data.cell.styles.textColor = [251, 191, 36];
+            else if (val === 'Low') data.cell.styles.textColor = [52, 211, 153];
+            else data.cell.styles.textColor = [148, 163, 184];
+          }
+          if (data.section === 'body' && data.column.index === 6) {
+            const val = data.row.raw[7];
+            if (val === 'Critical') data.cell.styles.textColor = [239, 68, 68];
+            else if (val === 'High') data.cell.styles.textColor = [248, 113, 113];
+            else if (val === 'Medium') data.cell.styles.textColor = [251, 191, 36];
+            else if (val === 'Low') data.cell.styles.textColor = [52, 211, 153];
+          }
+        }
+      });
+
+      doc.save(`bulk-risk-report-${Date.now()}.pdf`);
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+      setError('Failed to generate PDF. Please ensure all libraries are loaded.');
+    } finally {
+      setGeneratingPdf(false);
+    }
   };
 
   return (
@@ -189,7 +283,7 @@ export default function CsvUpload() {
       {/* Format Sample */}
       {showFormat && (
         <div style={{ background: 'var(--color-bg-elevated)', borderRadius: 12, padding: 16, marginBottom: 16, border: '1px solid var(--color-border-subtle)' }}>
-          <p className="text-xs text-text-muted mb-2 font-semibold">Required CSV Format (max {MAX_ROWS} rows):</p>
+          <p className="text-xs text-text-muted mb-2 font-semibold">Required CSV Format (Unlimited rows):</p>
           <div style={{ overflow: 'auto', maxHeight: 200 }}>
             <pre style={{ fontSize: '0.68rem', color: 'var(--color-primary-light)', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
               {SAMPLE_CSV}
@@ -237,7 +331,7 @@ export default function CsvUpload() {
             <>
               <p style={{ fontSize: '2rem', marginBottom: 8 }}>📁</p>
               <p className="text-sm text-text-secondary font-medium">Click to upload CSV file</p>
-              <p className="text-xs text-text-muted mt-1">Max {MAX_ROWS} rows · .csv only · Max 1MB</p>
+              <p className="text-xs text-text-muted mt-1">Unlimited rows · .csv only · Max 1MB</p>
             </>
           )}
         </label>
@@ -254,16 +348,30 @@ export default function CsvUpload() {
             <p className="text-sm text-text-secondary font-semibold">
               Results ({results.length} predictions)
             </p>
-            <button
-              onClick={downloadResults}
-              style={{
-                padding: '6px 14px', borderRadius: 8, fontSize: '0.72rem', fontWeight: 600,
-                border: '1px solid rgba(6,182,212,0.25)', background: 'rgba(6,182,212,0.08)',
-                color: '#22d3ee', cursor: 'pointer',
-              }}
-            >
-              📥 Download CSV
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={downloadPdf}
+                disabled={generatingPdf}
+                style={{
+                  padding: '6px 14px', borderRadius: 8, fontSize: '0.72rem', fontWeight: 600,
+                  border: '1px solid rgba(139,92,246,0.25)', background: 'rgba(139,92,246,0.08)',
+                  color: '#c4b5fd', cursor: generatingPdf ? 'not-allowed' : 'pointer',
+                  opacity: generatingPdf ? 0.6 : 1, transition: 'all 0.2s'
+                }}
+              >
+                {generatingPdf ? '⏳ Generating…' : '📥 Download PDF'}
+              </button>
+              <button
+                onClick={downloadResults}
+                style={{
+                  padding: '6px 14px', borderRadius: 8, fontSize: '0.72rem', fontWeight: 600,
+                  border: '1px solid rgba(6,182,212,0.25)', background: 'rgba(6,182,212,0.08)',
+                  color: '#22d3ee', cursor: 'pointer', transition: 'all 0.2s'
+                }}
+              >
+                📥 Download CSV
+              </button>
+            </div>
           </div>
           <div style={{ overflow: 'auto', maxHeight: 400, borderRadius: 10, border: '1px solid var(--color-border-subtle)' }}>
             <table style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>

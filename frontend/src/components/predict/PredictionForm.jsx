@@ -124,7 +124,11 @@ export default function PredictionForm({ onResult, onLoading }) {
       const result = await predictFloodRisk(form);
       onResult?.(result);
     } catch (err) {
-      setError(err.detail || 'Prediction failed. Please try again.');
+      setError(
+        typeof err.detail === 'string' 
+          ? err.detail 
+          : (Array.isArray(err.detail) ? `Invalid Input: ${err.detail[0].loc.slice(-1)} ${err.detail[0].msg}` : 'Prediction failed. Please try again.')
+      );
     } finally {
       setLoading(false);
       onLoading?.(false);
@@ -164,8 +168,8 @@ export default function PredictionForm({ onResult, onLoading }) {
       {/* ── Rainfall & Weather ── */}
       <SectionHeader icon="🌧️" title="Rainfall & Weather" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
-        <SliderInput label="7-Day Rainfall" name="rainfall_7d_mm" min={0} max={500} step={5} value={form.rainfall_7d_mm} onChange={handleChange} unit="mm" />
-        <SliderInput label="Monthly Rainfall" name="monthly_rainfall_mm" min={0} max={2000} step={10} value={form.monthly_rainfall_mm} onChange={handleChange} unit="mm" />
+        <SliderInput label="7-Day Rainfall" name="rainfall_7d_mm" min={0} max={2000} step={5} value={form.rainfall_7d_mm} onChange={handleChange} unit="mm" />
+        <SliderInput label="Monthly Rainfall" name="monthly_rainfall_mm" min={0} max={5000} step={10} value={form.monthly_rainfall_mm} onChange={handleChange} unit="mm" />
       </div>
 
       {/* ── Terrain & Geography ── */}
@@ -181,7 +185,7 @@ export default function PredictionForm({ onResult, onLoading }) {
         <SliderInput label="Nearest Hospital" name="nearest_hospital_km" min={0} max={100} step={1} value={form.nearest_hospital_km} onChange={handleChange} unit="km" />
         <SliderInput label="Nearest Evacuation" name="nearest_evac_km" min={0} max={100} step={1} value={form.nearest_evac_km} onChange={handleChange} unit="km" />
         <SliderInput label="Infrastructure Score" name="infrastructure_score" min={0} max={10} step={0.5} value={form.infrastructure_score} onChange={handleChange} />
-        <SliderInput label="Population Density" name="population_density_per_km2" min={0} max={5000} step={50} value={form.population_density_per_km2} onChange={handleChange} unit="/km²" />
+        <SliderInput label="Population Density" name="population_density_per_km2" min={0} max={25000} step={50} value={form.population_density_per_km2} onChange={handleChange} unit="/km²" />
       </div>
 
       {/* ── Land & Environment ── */}

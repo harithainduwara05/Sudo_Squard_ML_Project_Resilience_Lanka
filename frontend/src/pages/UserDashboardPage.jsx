@@ -143,6 +143,7 @@ export default function UserDashboardPage() {
   const [prediction,    setPrediction]    = useState(null);
   const [predictLoading,setPredictLoading]= useState(false);
   const [predictError,  setPredictError]  = useState('');
+  const [previousPrediction, setPreviousPrediction] = useState(null);
 
   // weather
   const [weather,       setWeather]       = useState(null);
@@ -423,19 +424,38 @@ export default function UserDashboardPage() {
 
   /* ── Run main prediction ── */
   const handleAnalyze = async () => {
-    setPredictLoading(true); setPredictError(''); setPrediction(null);
+    setPredictLoading(true); setPredictError(''); setPrediction(null); setPreviousPrediction(null);
     // clear old surrounding circles
     surroundRefs.current.forEach(c => c.remove());
     surroundRefs.current = [];
 
     try {
       const payload = buildPayload();
+
+      // Retrieve history for comparison
+      const historyKey = `prediction_history_${districtIndex}`;
+      const historyStr = localStorage.getItem(historyKey);
+      let history = historyStr ? JSON.parse(historyStr) : [];
+      if (history.length > 0) {
+        setPreviousPrediction(history[history.length - 1]);
+      }
+
       const result  = await predictFloodRisk(payload);
+
+      // Save new prediction
+      history.push({ ...result, input_data: payload });
+      if (history.length > 2) history.shift();
+      localStorage.setItem(historyKey, JSON.stringify(history));
+
       setPrediction(result);
       updateMapPin(lat, lng, result.risk_color);
       fetchSurrounding(payload, result.risk_color);
     } catch (err) {
-      setPredictError(err.detail || 'Prediction failed. Please try again.');
+      setPredictError(
+        typeof err.detail === 'string' 
+          ? err.detail 
+          : (Array.isArray(err.detail) ? `Invalid Input: ${err.detail[0].loc.slice(-1)} ${err.detail[0].msg}` : 'Prediction failed. Please try again.')
+      );
     } finally {
       setPredictLoading(false);
     }
@@ -454,15 +474,15 @@ export default function UserDashboardPage() {
       { dlat: -0.09, dlng: -0.09, label: 'SW'    },
     ];
 
-    for (const off of offsets) {
+    const promises = offsets.map(async (off) => {
       const sLat = basePayload.latitude  + off.dlat;
       const sLng = basePayload.longitude + off.dlng;
-      if (!SL_BOUNDS.contains([sLat, sLng])) continue;
+      if (!SL_BOUNDS.contains([sLat, sLng])) return;
 
       const payload = { ...basePayload, latitude: sLat, longitude: sLng, district: findClosestDistrict(sLat, sLng) };
       try {
         const res = await predictFloodRisk(payload);
-        if (!mapRef.current) break;
+        if (!mapRef.current) return;
 
         const score  = res.flood_risk_score;
         const color  = res.risk_color;
@@ -486,11 +506,11 @@ export default function UserDashboardPage() {
           .addTo(mapRef.current);
 
         surroundRefs.current.push(circle);
-        await new Promise(r => setTimeout(r, 120)); // slight stagger
       } catch { /* skip */ }
-    }
-  };
+    });
 
+    await Promise.all(promises);
+  };
   /* ─── Styles ─── */
   const btnGroup = (active) => ({
     padding: '8px 12px',
@@ -814,6 +834,7 @@ export default function UserDashboardPage() {
                 {/* Download Report Button */}
                 <DownloadReport
                   prediction={prediction}
+                  previousPrediction={previousPrediction}
                   weather={weather}
                   locationName={locationName}
                   districtIndex={districtIndex}

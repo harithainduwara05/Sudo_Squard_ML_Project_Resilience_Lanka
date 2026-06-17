@@ -11,8 +11,28 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [previousPrediction, setPreviousPrediction] = useState(null);
 
   const predictionId = result?.prediction_id || result?.id;
+
+  const handleResult = (newResult) => {
+    const districtIndex = newResult.input_data?.district || 0;
+    const historyKey = `prediction_history_advanced_${districtIndex}`;
+    const historyStr = localStorage.getItem(historyKey);
+    let history = historyStr ? JSON.parse(historyStr) : [];
+    
+    if (history.length > 0) {
+      setPreviousPrediction(history[history.length - 1]);
+    } else {
+      setPreviousPrediction(null);
+    }
+
+    history.push(newResult);
+    if (history.length > 2) history.shift();
+    localStorage.setItem(historyKey, JSON.stringify(history));
+
+    setResult(newResult);
+  };
 
   return (
     <div className="animate-fade-in">
@@ -34,7 +54,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Form — 3 cols */}
         <div className="lg:col-span-3">
-          <PredictionForm onResult={setResult} onLoading={setLoading} />
+          <PredictionForm onResult={handleResult} onLoading={setLoading} />
         </div>
 
         {/* Results — 2 cols */}
@@ -87,6 +107,7 @@ export default function DashboardPage() {
               <div className="glass-card p-4">
                 <DownloadReport
                   prediction={result}
+                  previousPrediction={previousPrediction}
                   weather={null}
                   locationName={null}
                   districtIndex={result?.input_data?.district || 0}
