@@ -251,6 +251,56 @@ class AuthService:
                 detail="User not found",
             )
 
+    async def update_user_profile(self, user_id: str, full_name: str = None, organization: str = None) -> dict:
+        """Update a user's profile fields (name, organization)."""
+        object_id = self._to_object_id(user_id)
+        update_fields = {}
+        if full_name is not None:
+            update_fields["full_name"] = full_name
+        if organization is not None:
+            update_fields["organization"] = organization
+
+        if not update_fields:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No fields to update",
+            )
+
+        result = await self.users_collection.update_one(
+            {"_id": object_id},
+            {"$set": update_fields},
+        )
+        if result.matched_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+        user = await self.users_collection.find_one({"_id": object_id})
+        return self._serialize_user(user)
+
+    async def change_password(self, user_id: str, current_password: str, new_password: str) -> dict:
+        """Change a user's password after verifying the current one."""
+        object_id = self._to_object_id(user_id)
+        user = await self.users_collection.find_one({"_id": object_id})
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+
+        if not self.verify_password(current_password, user["password"]):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Current password is incorrect",
+            )
+
+        new_hashed = self.hash_password(new_password)
+        await self.users_collection.update_one(
+            {"_id": object_id},
+            {"$set": {"password": new_hashed}},
+        )
+        return self._serialize_user(user)
+
     def _to_object_id(self, user_id: str) -> ObjectId:
         """Convert a string to ObjectId with a consistent API error."""
         try:

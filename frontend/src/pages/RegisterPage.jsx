@@ -252,7 +252,6 @@ export default function RegisterPage() {
         full_name: fullName.trim(),
         email,
         organization: organization.trim() || undefined,
-        role: 'user',
         password,
       });
       login(data);

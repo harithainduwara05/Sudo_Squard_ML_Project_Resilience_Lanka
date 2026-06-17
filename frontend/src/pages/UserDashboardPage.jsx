@@ -4,6 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { predictFloodRisk } from '../api/client';
 import { DISTRICTS, DISTRICT_DATA_DICTIONARY, LANDCOVER_TYPES, SOIL_TYPES } from '../utils/constants';
+import DownloadReport from '../components/predict/DownloadReport';
 
 /* ─── Sri Lanka Bounds ─── */
 const SL_BOUNDS = L.latLngBounds(
@@ -50,6 +51,19 @@ function findClosestDistrict(lat, lng) {
     if (d2 < min) { min = d2; idx = i; }
   });
   return idx;
+}
+
+/* ─── Check if a point is likely on land (not sea) ─── */
+function isLikelyOnLand(lat, lng) {
+  // Find distance to closest district centroid in degrees
+  let minDist = Infinity;
+  DISTRICT_CENTROIDS.forEach((d) => {
+    const dist = Math.sqrt((d.lat - lat) ** 2 + (d.lng - lng) ** 2);
+    if (dist < minDist) minDist = dist;
+  });
+  // If the closest centroid is more than ~0.6 degrees away,
+  // the click is likely in the sea (Sri Lanka is ~4° wide)
+  return minDist < 0.6;
 }
 
 /* ─── Weather helpers ─── */
@@ -118,6 +132,7 @@ export default function UserDashboardPage() {
   const [locationName, setLocationName] = useState('Sri Lanka');
   const [elevation, setElevation] = useState(20.0);
   const [manualHospitalKm, setManualHospitalKm] = useState(null);
+  const [locationError, setLocationError] = useState('');
 
   // search
   const [searchQuery,   setSearchQuery]   = useState('');
@@ -164,11 +179,17 @@ export default function UserDashboardPage() {
       maxZoom: 19,
     }).addTo(map);
 
-    // Click to pick
+    // Click to pick — with sea-click validation
     map.on('click', (e) => {
       const { lat, lng } = e.latlng;
       if (SL_BOUNDS.contains([lat, lng])) {
-        handleLocationUpdate(lat, lng);
+        if (isLikelyOnLand(lat, lng)) {
+          setLocationError('');
+          handleLocationUpdate(lat, lng);
+        } else {
+          setLocationError('⚠️ Invalid location — you clicked on the sea! Please select a point on land.');
+          setPrediction(null);
+        }
       }
     });
 
@@ -493,9 +514,9 @@ export default function UserDashboardPage() {
       {/* Page Header */}
       <div style={{ marginBottom: 24 }}>
         <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-text-primary)', margin: 0 }}>
-          Citizen Flood{' '}
+          Flood Risk{' '}
           <span className="bg-gradient-to-r from-primary-light via-primary to-blue-400 bg-clip-text text-transparent">
-            Alert Dashboard
+            User Dashboard
           </span>
         </h2>
         <p className="text-text-muted" style={{ fontSize: '0.875rem', marginTop: 6 }}>
@@ -651,12 +672,17 @@ export default function UserDashboardPage() {
 
             <div style={{ marginTop: 16, textAlign: 'center', marginBottom: 16 }}>
               <span style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)' }}>
-                *If you wish to manually override other parameters, please switch to <b>Research Mode</b>.
+                *If you wish to manually override other parameters, please switch to <b>Advanced Mode</b>.
               </span>
             </div>
 
-            {predictError && (
-              <p style={{ color: 'var(--color-risk-high)', fontSize: '0.75rem', marginBottom: 10 }}>⚠️ {predictError}</p>
+            {(predictError || locationError) && (
+              <div style={{
+                padding: '10px 14px', borderRadius: 10, marginBottom: 10,
+                background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+              }}>
+                <p style={{ color: '#fca5a5', fontSize: '0.78rem', fontWeight: 600 }}>{predictError || locationError}</p>
+              </div>
             )}
 
             {/* Submit */}
@@ -781,9 +807,20 @@ export default function UserDashboardPage() {
                   );
                 })()}
 
-                <p style={{ fontSize: '0.68rem', color: 'var(--color-text-muted)', textAlign: 'center' }}>
+                <p style={{ fontSize: '0.68rem', color: 'var(--color-text-muted)', textAlign: 'center', marginBottom: 10 }}>
                   {DISTRICTS[districtIndex]} · {lat.toFixed(3)}°N {lng.toFixed(3)}°E · ID: {prediction.prediction_id.slice(0, 8)}…
                 </p>
+
+                {/* Download Report Button */}
+                <DownloadReport
+                  prediction={prediction}
+                  weather={weather}
+                  locationName={locationName}
+                  districtIndex={districtIndex}
+                  lat={lat}
+                  lng={lng}
+                  mode="user"
+                />
               </motion.div>
             ) : (
               <motion.div key="placeholder" initial={{ opacity: 0 }} animate={{ opacity: 1 }}

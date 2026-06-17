@@ -35,12 +35,27 @@ def get_db_service(request: Request):
     ),
 )
 async def predict_flood_risk(
+    request: Request,
     payload: PredictionRequest,
     background_tasks: BackgroundTasks,
     ml_service=Depends(get_ml_service),
     db_service=Depends(get_db_service),
 ) -> PredictionResponse:
     """Run inference and return the risk assessment."""
+
+    # ── Extract user_id from JWT (optional — prediction still works unauthenticated) ──
+    user_id = None
+    try:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ", 1)[1]
+            auth_service = request.app.state.auth_service
+            token_data = auth_service.verify_token(token)
+            user = await auth_service.get_user_by_email(token_data.email)
+            if user:
+                user_id = user["id"]
+    except Exception:
+        pass  # Non-critical — prediction proceeds without user tracking
 
     # ── Run the ML model ──────────────────────────────────────────────────
     score, risk_level, risk_color, feature_importance = ml_service.predict(payload)
@@ -67,6 +82,7 @@ async def predict_flood_risk(
         "risk_color": risk_color,
         "timestamp": timestamp,
         "input_data": payload.model_dump(),
+        "user_id": user_id,
     }
     background_tasks.add_task(db_service.log_prediction, log_entry)
 

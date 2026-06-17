@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 export default function Header() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const isAdmin = user?.role === 'admin';
 
   const handleLogout = () => {
     logout();
@@ -55,62 +56,8 @@ export default function Header() {
           {/* Navigation + User */}
           <div className="flex items-center gap-4">
             <nav className="flex items-center gap-1">
-              <NavLink
-                to="/"
-                end
-                className={({ isActive }) =>
-                  `px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                    isActive
-                      ? 'text-primary-light bg-primary/10'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
-                  }`
-                }
-              >
-                <span className="flex items-center gap-2">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M2 2h5v6H2V2zm7 0h5v4H9V2zM2 10h5v4H2v-4zm7-2h5v6H9V8z" opacity="0.9"/>
-                  </svg>
-                  Research Mode
-                </span>
-              </NavLink>
-              <NavLink
-                to="/user"
-                className={({ isActive }) =>
-                  `px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                    isActive
-                      ? 'text-primary-light bg-primary/10'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
-                  }`
-                }
-              >
-                <span className="flex items-center gap-2">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                  </svg>
-                  Citizen Mode
-                </span>
-              </NavLink>
-              <NavLink
-                to="/analytics"
-                className={({ isActive }) =>
-                  `px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                    isActive
-                      ? 'text-primary-light bg-primary/10'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
-                  }`
-                }
-              >
-                <span className="flex items-center gap-2">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M2 14V8h3v6H2zm4.5 0V2h3v12h-3zM11 14V5h3v9h-3z" opacity="0.9"/>
-                  </svg>
-                  Analytics
-                </span>
-              </NavLink>
-              {user?.role === 'admin' && (
+              {/* Admin only sees Admin link */}
+              {isAdmin ? (
                 <NavLink
                   to="/admin"
                   className={({ isActive }) =>
@@ -125,9 +72,70 @@ export default function Header() {
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                       <path d="M8 1l5 2v4c0 3.2-2 6.1-5 8-3-1.9-5-4.8-5-8V3l5-2zm0 2.2L5 4.4V7c0 2.1 1.1 4.2 3 5.6 1.9-1.4 3-3.5 3-5.6V4.4L8 3.2z" opacity="0.9" />
                     </svg>
-                    Admin
+                    Admin Dashboard
                   </span>
                 </NavLink>
+              ) : (
+                <>
+                  {/* User Mode — default landing */}
+                  <NavLink
+                    to="/"
+                    end
+                    className={({ isActive }) =>
+                      `px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                        isActive
+                          ? 'text-primary-light bg-primary/10'
+                          : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                      }`
+                    }
+                  >
+                    <span className="flex items-center gap-2">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                      </svg>
+                      User Mode
+                    </span>
+                  </NavLink>
+
+                  {/* Advanced Mode — full form */}
+                  <NavLink
+                    to="/advanced"
+                    className={({ isActive }) =>
+                      `px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                        isActive
+                          ? 'text-primary-light bg-primary/10'
+                          : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                      }`
+                    }
+                  >
+                    <span className="flex items-center gap-2">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M2 2h5v6H2V2zm7 0h5v4H9V2zM2 10h5v4H2v-4zm7-2h5v6H9V8z" opacity="0.9"/>
+                      </svg>
+                      Advanced Mode
+                    </span>
+                  </NavLink>
+
+                  {/* Analytics */}
+                  <NavLink
+                    to="/analytics"
+                    className={({ isActive }) =>
+                      `px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                        isActive
+                          ? 'text-primary-light bg-primary/10'
+                          : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                      }`
+                    }
+                  >
+                    <span className="flex items-center gap-2">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M2 14V8h3v6H2zm4.5 0V2h3v12h-3zM11 14V5h3v9h-3z" opacity="0.9"/>
+                      </svg>
+                      Analytics
+                    </span>
+                  </NavLink>
+                </>
               )}
             </nav>
 
@@ -139,21 +147,29 @@ export default function Header() {
 
             {/* User Section */}
             <div className="flex items-center gap-3">
-              {/* Avatar */}
-              <div className="flex items-center gap-2">
+              {/* Avatar — clickable to profile */}
+              <button
+                onClick={() => navigate('/profile')}
+                className="flex items-center gap-2"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                title="View Profile"
+              >
                 <div style={{
                   width: 32, height: 32, borderRadius: '10px',
                   background: 'linear-gradient(135deg, #06b6d4, #3b82f6)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: '0.8rem', fontWeight: 700, color: 'white',
-                  flexShrink: 0,
-                }}>
+                  flexShrink: 0, transition: 'transform .2s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                >
                   {avatarLetter}
                 </div>
                 <span className="hidden sm:block text-sm font-medium text-text-primary" style={{ maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {firstName}
                 </span>
-              </div>
+              </button>
 
               {/* Logout */}
               <button
