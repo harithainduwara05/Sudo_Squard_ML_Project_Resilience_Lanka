@@ -4,6 +4,8 @@ import PredictionForm from '../components/predict/PredictionForm';
 import ResultCard from '../components/predict/ResultCard';
 import FeedbackWidget from '../components/predict/FeedbackWidget';
 import SimulationWidget from '../components/predict/SimulationWidget';
+import DownloadReport from '../components/predict/DownloadReport';
+import CsvUpload from '../components/predict/CsvUpload';
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -18,13 +20,13 @@ export default function DashboardPage() {
       <div className="mb-8">
         <h2 className="text-3xl font-bold mb-2">
           <span className="bg-gradient-to-r from-primary-light via-primary to-blue-400 bg-clip-text text-transparent">
-            Real-Time Flood Risk
+            Advanced
           </span>
-          <span className="text-text-primary"> Dashboard</span>
+          <span className="text-text-primary"> Flood Risk Dashboard</span>
         </h2>
         <p className="text-text-muted text-sm max-w-2xl">
-          Leverage machine learning to predict flood vulnerability across Sri Lanka. 
-          Enter environmental parameters for instant risk assessment.
+          Full control over environmental parameters for detailed flood risk analysis.
+          Ideal for research and in-depth assessments.
         </p>
       </div>
 
@@ -80,6 +82,19 @@ export default function DashboardPage() {
               )}
 
               <FeedbackWidget predictionId={predictionId} />
+
+              {/* Download Report */}
+              <div className="glass-card p-4">
+                <DownloadReport
+                  prediction={result}
+                  weather={null}
+                  locationName={null}
+                  districtIndex={result?.input_data?.district || 0}
+                  lat={result?.input_data?.latitude}
+                  lng={result?.input_data?.longitude}
+                  mode="advanced"
+                />
+              </div>
             </>
           ) : (
             /* Placeholder when no result */
@@ -105,6 +120,11 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* CSV Batch Upload Section */}
+      <div className="mt-8">
+        <CsvUpload />
       </div>
     </div>
   );

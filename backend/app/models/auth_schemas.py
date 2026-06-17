@@ -46,3 +46,16 @@ class AuthResponse(BaseModel):
 class TokenData(BaseModel):
     """Schema for decoded JWT token data."""
     email: Optional[str] = None
+
+
+class ProfileUpdateRequest(BaseModel):
+    """Schema for updating user profile."""
+    full_name: Optional[str] = Field(None, min_length=2, max_length=100, description="User's full name")
+    organization: Optional[str] = Field(None, max_length=200, description="User's organization")
+
+
+class PasswordChangeRequest(BaseModel):
+    """Schema for changing user password."""
+    current_password: str = Field(..., description="Current password for verification")
+    new_password: str = Field(..., min_length=8, description="New password (min 8 characters)")
+

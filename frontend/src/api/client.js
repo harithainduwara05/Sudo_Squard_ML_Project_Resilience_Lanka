@@ -179,4 +179,41 @@ export async function getCurrentUser() {
   }
 }
 
+/**
+ * Update user profile (name, organization)
+ */
+export async function updateProfile(data) {
+  try {
+    const response = await api.patch('/api/auth/profile', data);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { detail: 'Failed to update profile.' };
+  }
+}
+
+/**
+ * Change user password
+ */
+export async function changePassword(data) {
+  try {
+    const response = await api.patch('/api/auth/password', data);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { detail: 'Failed to change password.' };
+  }
+}
+
+/**
+ * Get current user's prediction history
+ */
+export async function getMyPredictions() {
+  try {
+    const response = await api.get('/api/auth/my-predictions');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { detail: 'Failed to fetch prediction history.' };
+  }
+}
+
 export default api;
+

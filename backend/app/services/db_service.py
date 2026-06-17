@@ -157,6 +157,40 @@ class DBService:
             )
             return []
 
+    async def get_user_predictions(self, user_id: str, limit: int = 20) -> list[dict]:
+        """
+        Retrieve recent predictions for a specific user.
+
+        Args:
+            user_id: The user's ObjectId string.
+            limit:   Maximum number of records to return.
+
+        Returns:
+            List of prediction dicts for this user, newest first.
+        """
+        try:
+            cursor = (
+                self.db.prediction_logs
+                .find({"user_id": user_id}, {"_id": 0})
+                .sort("created_at", -1)
+                .limit(limit)
+            )
+            results: list[dict] = await cursor.to_list(length=limit)
+
+            # Resolve district names for display
+            for item in results:
+                item["district_name"] = self._district_name(item)
+
+            return results
+
+        except Exception as exc:
+            logger.warning(
+                "Failed to fetch user predictions from MongoDB: %s",
+                exc,
+                exc_info=True,
+            )
+            return []
+
     async def get_feedback_accuracy(self, limit: int = 8) -> dict[str, Any]:
         """
         Summarize feedback as an operational accuracy signal.

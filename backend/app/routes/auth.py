@@ -7,6 +7,8 @@ from fastapi import APIRouter, HTTPException, Request, status
 from app.models.auth_schemas import (
     AuthResponse,
     LoginRequest,
+    PasswordChangeRequest,
+    ProfileUpdateRequest,
     RegisterRequest,
     UserResponse,
 )
@@ -87,3 +89,38 @@ async def get_me(request: Request):
     """Return the currently authenticated user's profile."""
     user = await get_current_user(request)
     return UserResponse(**user)
+
+
+@router.patch("/profile", response_model=UserResponse)
+async def update_profile(request: Request, body: ProfileUpdateRequest):
+    """Update the currently authenticated user's profile."""
+    user = await get_current_user(request)
+    auth_service = request.app.state.auth_service
+    updated = await auth_service.update_user_profile(
+        user_id=user["id"],
+        full_name=body.full_name,
+        organization=body.organization,
+    )
+    return UserResponse(**updated)
+
+
+@router.patch("/password")
+async def change_password(request: Request, body: PasswordChangeRequest):
+    """Change the currently authenticated user's password."""
+    user = await get_current_user(request)
+    auth_service = request.app.state.auth_service
+    await auth_service.change_password(
+        user_id=user["id"],
+        current_password=body.current_password,
+        new_password=body.new_password,
+    )
+    return {"message": "Password changed successfully"}
+
+
+@router.get("/my-predictions")
+async def get_my_predictions(request: Request):
+    """Return the authenticated user's recent prediction history."""
+    user = await get_current_user(request)
+    db_service = request.app.state.db_service
+    predictions = await db_service.get_user_predictions(user_id=user["id"], limit=20)
+    return {"predictions": predictions, "total": len(predictions)}

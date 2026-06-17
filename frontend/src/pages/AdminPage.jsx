@@ -155,6 +155,8 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [savingUserId, setSavingUserId] = useState(null);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const feedback = overview?.feedback || {};
   const riskInsights = overview?.risk_insights || {};
@@ -226,13 +228,9 @@ export default function AdminPage() {
   };
 
   const handleDeleteUser = async (targetUser) => {
-    const confirmed = window.confirm(
-      `Delete ${targetUser.full_name}? This permanently removes the account.`
-    );
-    if (!confirmed) return;
-
     setSavingUserId(targetUser.id);
     setError('');
+    setDeleteConfirm(null);
     try {
       await deleteAdminUser(targetUser.id);
       setUsers((current) => current.filter((item) => item.id !== targetUser.id));
@@ -269,6 +267,71 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 100,
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div className="glass-card" style={{ padding: 24, maxWidth: 400, width: '90%', textAlign: 'center' }}>
+            <p style={{ fontSize: '2rem', marginBottom: 12 }}>⚠️</p>
+            <p className="text-text-primary font-semibold mb-2">Confirm Deletion</p>
+            <p className="text-sm text-text-muted mb-6">
+              Delete <strong>{deleteConfirm.full_name}</strong>? This permanently removes the account and cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                style={{
+                  padding: '8px 20px', borderRadius: 8, fontSize: '0.8rem', fontWeight: 600,
+                  border: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-elevated)',
+                  color: 'var(--color-text-secondary)', cursor: 'pointer',
+                }}
+              >Cancel</button>
+              <button
+                onClick={() => handleDeleteUser(deleteConfirm)}
+                style={{
+                  padding: '8px 20px', borderRadius: 8, fontSize: '0.8rem', fontWeight: 600,
+                  border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)',
+                  color: '#fca5a5', cursor: 'pointer',
+                }}
+              >Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab Navigation */}
+      <div style={{
+        display: 'flex', gap: 4, marginBottom: 24,
+        background: 'var(--color-bg-elevated)', borderRadius: 12,
+        padding: 4, border: '1px solid var(--color-border-subtle)',
+      }}>
+        {[
+          { id: 'overview', label: '📊 System Overview' },
+          { id: 'users', label: '👥 User Management' },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              flex: 1, padding: '10px 16px', borderRadius: 10,
+              fontSize: '0.82rem', fontWeight: 700, border: 'none',
+              cursor: 'pointer', transition: 'all .2s',
+              background: activeTab === tab.id ? 'linear-gradient(135deg, rgba(6,182,212,0.15), rgba(59,130,246,0.1))' : 'transparent',
+              color: activeTab === tab.id ? '#22d3ee' : 'var(--color-text-secondary)',
+              borderBottom: activeTab === tab.id ? '2px solid #06b6d4' : '2px solid transparent',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ═══ SYSTEM OVERVIEW TAB ═══ */}
+      {activeTab === 'overview' && (
+        <>
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[...Array(4)].map((_, index) => (
@@ -338,7 +401,12 @@ export default function AdminPage() {
           </InsightCard>
         </div>
       )}
+        </>
+      )}
 
+      {/* ═══ USER MANAGEMENT TAB ═══ */}
+      {activeTab === 'users' && (
+        <>
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <section className="xl:col-span-2 glass-card p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
@@ -389,19 +457,26 @@ export default function AdminPage() {
                           )}
                         </td>
                         <td className="py-4 px-4">
-                          <select
-                            value={item.role}
-                            disabled={isSaving || (isCurrentUser && item.role === 'admin')}
-                            onChange={(event) => handleRoleChange(item, event.target.value)}
-                            className="min-w-32 bg-white/5 backdrop-blur-md border border-white/10 rounded-lg px-3 py-1.5 text-sm text-text-primary focus:border-primary/50 outline-none hover:bg-white/10 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.1)] appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                            style={{ backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right .7rem top 50%', backgroundSize: '.65rem auto', paddingRight: '2rem' }}
-                          >
-                            {roles.map((role) => (
-                              <option key={role.value} value={role.value} className="bg-slate-900 text-text-primary">
-                                {role.label}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="inline-flex rounded-lg border border-border-subtle bg-bg-elevated/70 p-1">
+                            {roles.map((role) => {
+                              const active = item.role === role.value;
+                              return (
+                                <button
+                                  key={role.value}
+                                  type="button"
+                                  disabled={isSaving || (isCurrentUser && item.role === 'admin')}
+                                  onClick={() => handleRoleChange(item, role.value)}
+                                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                                    active
+                                      ? 'bg-primary/20 text-primary-light'
+                                      : 'text-text-muted hover:text-text-primary hover:bg-white/5'
+                                  } disabled:opacity-40 disabled:cursor-not-allowed`}
+                                >
+                                  {role.label}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </td>
                         <td className="py-4 px-4">
                           <span
@@ -417,8 +492,8 @@ export default function AdminPage() {
                         <td className="py-4 px-4 text-text-secondary whitespace-nowrap">
                           {formatDate(item.created_at)}
                         </td>
-                        <td className="py-4 pl-4 text-right">
-                          <div className="flex flex-wrap items-center justify-end gap-2 min-w-[160px]">
+                        <td className="py-4 pl-4">
+                          <div className="flex items-center justify-end gap-2">
                             <button
                               type="button"
                               disabled={isSaving || isCurrentUser}
@@ -434,7 +509,7 @@ export default function AdminPage() {
                             <button
                               type="button"
                               disabled={isSaving || isCurrentUser}
-                              onClick={() => handleDeleteUser(item)}
+                              onClick={() => setDeleteConfirm(item)}
                               className="px-3 py-2 rounded-lg text-xs font-semibold text-risk-high border border-risk-high/30 transition-colors hover:bg-risk-high/10 disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                               Delete
@@ -466,25 +541,48 @@ export default function AdminPage() {
             <EmptyState>No inaccurate feedback yet.</EmptyState>
           ) : (
             <div className="space-y-3">
-              {recentIssues.map((item) => (
-                <div key={item.feedback_id} className="rounded-xl border border-border-subtle bg-bg-card/60 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs font-semibold text-primary-light">
-                      {item.prediction_id}
+              {recentIssues.map((item, idx) => {
+                const score = item.prediction_score || item.flood_risk_score;
+                const riskLevel = item.prediction_risk_level || item.risk_level;
+                return (
+                  <div key={item.feedback_id || idx} className="rounded-xl border border-border-subtle bg-bg-card/60 p-4">
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <div className="flex items-center gap-2">
+                        {riskLevel && (
+                          <span style={{
+                            display: 'inline-block', padding: '2px 8px', borderRadius: 12,
+                            fontSize: '0.68rem', fontWeight: 700,
+                            background: `${riskColors[riskLevel?.toLowerCase()] || '#64748b'}20`,
+                            color: riskColors[riskLevel?.toLowerCase()] || '#64748b',
+                          }}>
+                            {riskLevel}
+                          </span>
+                        )}
+                        {score !== undefined && (
+                          <span className="text-xs text-text-muted font-mono">
+                            Score: {Number(score).toFixed(3)}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-text-muted whitespace-nowrap">
+                        {formatDate(item.created_at || item.timestamp)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-primary-light font-mono mb-1">
+                      ID: {(item.prediction_id || '').slice(0, 12)}…
                     </p>
-                    <span className="text-[11px] text-text-muted whitespace-nowrap">
-                      {formatDate(item.created_at || item.timestamp)}
-                    </span>
+                    <p className="text-sm text-text-secondary">
+                      {item.comment || 'No comment provided.'}
+                    </p>
                   </div>
-                  <p className="text-sm text-text-secondary mt-3">
-                    {item.comment || 'No comment provided.'}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
       </div>
+        </>
+      )}
     </div>
   );
 }

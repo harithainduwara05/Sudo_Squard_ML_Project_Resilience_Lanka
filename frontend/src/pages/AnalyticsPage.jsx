@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import StatsCards from '../components/analytics/StatsCards';
 import RecentPredictions from '../components/analytics/RecentPredictions';
-import { getAnalytics } from '../api/client';
+import { getAnalytics, getMyPredictions } from '../api/client';
 
 function SkeletonCard() {
   return <div className="skeleton h-28 rounded-2xl" />;
@@ -22,6 +22,7 @@ function SkeletonTable() {
 
 export default function AnalyticsPage() {
   const [data, setData] = useState(null);
+  const [myPredictions, setMyPredictions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -30,19 +31,38 @@ export default function AnalyticsPage() {
 
     async function fetchData() {
       try {
-        const result = await getAnalytics();
+        // Fetch both global analytics and user's own predictions
+        const [analytics, userPreds] = await Promise.allSettled([
+          getAnalytics(),
+          getMyPredictions(),
+        ]);
+
         if (!cancelled) {
-          setData(result);
+          if (analytics.status === 'fulfilled') {
+            setData(analytics.value);
+          } else {
+            setError('Unable to fetch analytics. Backend may be offline.');
+            setData({
+              total_predictions: 0,
+              high_risk_count: 0,
+              avg_risk_score: 0,
+              accuracy: 0,
+              recent_predictions: [],
+            });
+          }
+
+          if (userPreds.status === 'fulfilled') {
+            setMyPredictions(userPreds.value?.predictions || []);
+          }
         }
       } catch (err) {
         if (!cancelled) {
           setError('Unable to fetch analytics. Backend may be offline.');
-          // Set fallback data so the UI still renders
           setData({
             total_predictions: 0,
             high_risk_count: 0,
             avg_risk_score: 0,
-            accuracy: 94.2,
+            accuracy: 0,
             recent_predictions: [],
           });
         }
@@ -55,6 +75,11 @@ export default function AnalyticsPage() {
     return () => { cancelled = true; };
   }, []);
 
+  // Use user predictions if available, otherwise fall back to global
+  const displayPredictions = myPredictions.length > 0
+    ? myPredictions
+    : (data?.recent_predictions || []);
+
   return (
     <div className="animate-fade-in">
       {/* Hero */}
@@ -66,7 +91,7 @@ export default function AnalyticsPage() {
           <span className="text-text-primary"> Overview</span>
         </h2>
         <p className="text-text-muted text-sm max-w-2xl">
-          Track prediction history, risk distributions, and model performance metrics across Sri Lanka.
+          Track your prediction history, risk distributions, and model performance across Sri Lanka.
         </p>
       </div>
 
@@ -84,7 +109,7 @@ export default function AnalyticsPage() {
         </div>
       ) : (
         <div className="mb-8">
-          <StatsCards data={data} />
+          <StatsCards data={data} myPredictionCount={myPredictions.length} />
         </div>
       )}
 
@@ -92,7 +117,7 @@ export default function AnalyticsPage() {
       {loading ? (
         <SkeletonTable />
       ) : (
-        <RecentPredictions predictions={data?.recent_predictions || []} />
+        <RecentPredictions predictions={displayPredictions} isUserScoped={myPredictions.length > 0} />
       )}
     </div>
   );

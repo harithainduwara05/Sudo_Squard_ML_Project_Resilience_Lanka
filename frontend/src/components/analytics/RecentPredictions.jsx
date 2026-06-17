@@ -1,7 +1,22 @@
 import { motion } from 'framer-motion';
 import { getRiskLevel, DISTRICTS } from '../../utils/constants';
 
-export default function RecentPredictions({ predictions = [] }) {
+function resolveDistrict(pred) {
+  // The prediction might have district_name from backend (user-scoped)
+  if (pred.district_name && pred.district_name !== 'Unknown') return pred.district_name;
+  // Check input_data.district (numeric index)
+  const distIdx = pred.input_data?.district ?? pred.district;
+  if (typeof distIdx === 'number' && distIdx >= 0 && distIdx < DISTRICTS.length) {
+    return DISTRICTS[distIdx];
+  }
+  if (typeof distIdx === 'string') {
+    const idx = parseInt(distIdx);
+    if (!isNaN(idx) && idx >= 0 && idx < DISTRICTS.length) return DISTRICTS[idx];
+  }
+  return 'Unknown';
+}
+
+export default function RecentPredictions({ predictions = [], isUserScoped = false }) {
   return (
     <motion.div
       className="glass-card p-6 overflow-hidden"
@@ -11,7 +26,7 @@ export default function RecentPredictions({ predictions = [] }) {
     >
       <h3 className="text-lg font-semibold text-text-primary mb-5 flex items-center gap-2">
         <span className="text-xl">🕐</span>
-        Recent Predictions
+        {isUserScoped ? 'Your Recent Predictions' : 'Recent Predictions'}
       </h3>
 
       {predictions.length === 0 ? (
@@ -27,6 +42,7 @@ export default function RecentPredictions({ predictions = [] }) {
               <tr className="border-b border-border-subtle">
                 <th className="text-left py-3 px-3 text-text-muted text-xs uppercase tracking-wider font-medium">Time</th>
                 <th className="text-left py-3 px-3 text-text-muted text-xs uppercase tracking-wider font-medium">District</th>
+                <th className="text-left py-3 px-3 text-text-muted text-xs uppercase tracking-wider font-medium">Location</th>
                 <th className="text-left py-3 px-3 text-text-muted text-xs uppercase tracking-wider font-medium">Risk Score</th>
                 <th className="text-left py-3 px-3 text-text-muted text-xs uppercase tracking-wider font-medium">Severity</th>
               </tr>
@@ -34,10 +50,14 @@ export default function RecentPredictions({ predictions = [] }) {
             <tbody>
               {predictions.map((pred, i) => {
                 const score = pred.flood_risk_score ?? pred.risk_score ?? 0;
-                const risk = getRiskLevel(score);
-                const district = DISTRICTS[pred.district] || `District ${pred.district}`;
-                const time = pred.timestamp
-                  ? new Date(pred.timestamp).toLocaleString()
+                const risk = pred.risk_level
+                  ? { level: pred.risk_level, color: pred.risk_color || getRiskLevel(score).color, bgColor: getRiskLevel(score).bgColor }
+                  : getRiskLevel(score);
+                const district = resolveDistrict(pred);
+                const lat = pred.input_data?.latitude ?? pred.latitude;
+                const lng = pred.input_data?.longitude ?? pred.longitude;
+                const time = pred.timestamp || pred.created_at
+                  ? new Date(pred.timestamp || pred.created_at).toLocaleString()
                   : '—';
 
                 return (
@@ -50,9 +70,13 @@ export default function RecentPredictions({ predictions = [] }) {
                   >
                     <td className="py-3 px-3 text-text-secondary text-xs font-mono">{time}</td>
                     <td className="py-3 px-3 text-text-primary font-medium">{district}</td>
+                    <td className="py-3 px-3 text-text-muted text-xs font-mono">
+                      {lat ? `${Number(lat).toFixed(3)}°N` : '—'},{' '}
+                      {lng ? `${Number(lng).toFixed(3)}°E` : '—'}
+                    </td>
                     <td className="py-3 px-3">
                       <span className="font-mono font-semibold" style={{ color: risk.color }}>
-                        {score.toFixed(3)}
+                        {typeof score === 'number' ? score.toFixed(3) : '—'}
                       </span>
                     </td>
                     <td className="py-3 px-3">
@@ -61,7 +85,7 @@ export default function RecentPredictions({ predictions = [] }) {
                           risk.level === 'CRITICAL' ? 'animate-pulse-glow' : ''
                         }`}
                         style={{
-                          background: risk.bgColor,
+                          background: risk.bgColor || `${risk.color}20`,
                           color: risk.color,
                           border: `1px solid ${risk.color}25`,
                         }}
