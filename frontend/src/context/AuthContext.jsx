@@ -10,7 +10,8 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (token) {
       // Verify token by calling /api/auth/me
-      fetch('/api/auth/me', {
+      const baseUrl = import.meta.env.VITE_API_URL || '';
+      fetch(`${baseUrl}/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then(res => res.ok ? res.json() : Promise.reject())
