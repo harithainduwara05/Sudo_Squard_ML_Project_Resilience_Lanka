@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     DB_NAME: str = "resilience_lanka"
 
     # ── CORS ──────────────────────────────────────────────────────────────
-    CORS_ORIGINS: List[str] = ["http://localhost:5173"]
+    CORS_ORIGINS: List[str] = ["*"]
 
     # ── JWT Authentication ────────────────────────────────────────────────
     JWT_SECRET_KEY: str = "resilience-lanka-secret-key-change-in-production-2026"
