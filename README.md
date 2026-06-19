@@ -113,3 +113,14 @@ The system was designed to feel **premium and urgent**. It completely avoids gen
 
 ## 🏆 Hackathon / Competition Readiness
 This project goes beyond a standard Jupyter Notebook data science project. It is a **fully deployable Software-as-a-Service (SaaS)** demonstrating the complete ML lifecycle: from data preprocessing and model training to deployment, scalable REST APIs, Explainable AI, and a production-grade user interface.
+
+---
+
+## 👥 Team Information
+
+**Team Name:** Sudo_Squard
+
+* **01. H. I. Liyanapathirana**
+* **02. L. G. V. Damyuru**
+* **03. W. A. H. E. Sampath**
+* **04. W. M. G. S. Bandara**
